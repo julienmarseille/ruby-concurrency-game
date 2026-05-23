@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ruby Concurrency Simulator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d1117; color: #e6edf3;
+  font-family: 'Courier New', monospace;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* Particle canvas — fixed overlay, captures nothing */
+#particles {
+  position: fixed; inset: 0; pointer-events: none; z-index: 50;
+}
+
+header {
+  background: #161b22; border-bottom: 1px solid #30363d;
+  padding: 10px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.logo { color: #cc0000; font-size: 17px; font-weight: bold; flex-shrink: 0; margin-right: 4px; }
+.stat { background: #21262d; padding: 5px 14px; border-radius: 6px; min-width: 80px; }
+.stat-label { font-size: 9px; color: #8b949e; text-transform: uppercase; }
+.stat-value { font-size: 16px; font-weight: bold; color: #f0f6fc; }
+.phase-badge {
+  margin-left: auto; background: #21262d; border: 1px solid #30363d;
+  border-radius: 4px; padding: 3px 10px; font-size: 11px; color: #8b949e;
+}
+
+.game-area {
+  flex: 1; display: grid;
+  grid-template-columns: 210px 1fr 270px;
+  overflow: hidden;
+}
+
+.panel {
+  border-right: 1px solid #30363d; padding: 12px;
+  overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+}
+.panel:last-child { border-right: none; border-left: 1px solid #30363d; }
+.panel-title { font-size: 9px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+.divider { border-top: 1px solid #21262d; flex-shrink: 0; }
+
+/* Queue items */
+.req-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 6px; border: 1px solid;
+  font-size: 11px; flex-shrink: 0; position: relative;
+}
+.req-item.new { animation: slideIn 0.25s ease; }
+.req-item.io  { background: #0c2340; border-color: #1a4a80; }
+.req-item.cpu { background: #2d0c0c; border-color: #6b1a1a; }
+.req-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.io  .req-dot { background: #4299e1; box-shadow: 0 0 7px #4299e1aa; }
+.cpu .req-dot { background: #fc8181; box-shadow: 0 0 7px #fc8181aa; }
+.req-reward { margin-left: auto; color: #3fb950; font-size: 10px; }
+
+@keyframes slideIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
+@keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+
+/* Runtime */
+.runtime { display: flex; flex-direction: column; gap: 0; overflow: hidden; }
+.runtime-scroll { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+
+/* GVL banner */
+.gvl-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: #161b22; border: 2px solid #30363d;
+  border-radius: 8px; padding: 10px 14px;
+  transition: border-color 0.4s, background 0.4s; flex-shrink: 0;
+}
+.gvl-banner.held { border-color: #d29922; background: #1f1700; }
+.gvl-banner.free { border-color: #2ea043; background: #0d1f12; }
+.gvl-icon { font-size: 26px; transition: transform 0.4s; }
+.gvl-label { font-size: 9px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+.gvl-status { font-size: 13px; font-weight: bold; margin-top: 2px; transition: color 0.3s; }
+
+/* Thread card */
+.thread-card {
+  background: #161b22; border: 2px solid #30363d;
+  border-radius: 10px; padding: 12px 14px;
+  transition: border-color 0.3s, background 0.3s; flex-shrink: 0;
+}
+.thread-card.t-cpu      { border-color: #d29922; background: #1a1300; }
+.thread-card.t-io       { border-color: #4299e1; background: #0a1929; }
+.thread-card.t-gvl-wait { border-color: #6e40c9; background: #140d2a; }
+.thread-card.t-idle     { border-color: #30363d; opacity: 0.5; }
+
+.thread-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.thread-name { font-size:13px; font-weight:bold; }
+.thread-badge { font-size:10px; padding:2px 9px; border-radius:10px; font-weight:bold; transition: background 0.3s, color 0.3s; }
+.badge-idle     { background:#21262d; color:#8b949e; }
+.badge-cpu      { background:#3d2a00; color:#f0a500; }
+.badge-io       { background:#0a2540; color:#58b4ff; }
+.badge-gvl-wait { background:#200d4a; color:#b490f5; animation:pulse 0.9s infinite; }
+
+/* Request tag inside thread */
+.req-tag {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 6px; border: 1px solid;
+  font-size: 11px; margin-bottom: 10px;
+}
+.req-tag.io  { background: #0c2340; border-color: #1a4a80; }
+.req-tag.cpu { background: #2d0c0c; border-color: #6b1a1a; }
+.req-tag .req-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.req-tag.io  .req-dot { background:#4299e1; box-shadow:0 0 7px #4299e1aa; }
+.req-tag.cpu .req-dot { background:#fc8181; box-shadow:0 0 7px #fc8181aa; }
+.req-tag-id { margin-left:auto; font-size:10px; color:#484f58; }
+
+/* Phase stepper */
+.phase-stepper { display:flex; align-items:center; gap:4px; margin-bottom:10px; flex-wrap:wrap; }
+.phase-pill { font-size:9px; padding:3px 8px; border-radius:10px; border:1px solid; white-space:nowrap; transition: all 0.2s; }
+.phase-pill.pending    { background:#1c2128; border-color:#30363d; color:#484f58; }
+.phase-pill.active-cpu { background:#3d2a00; border-color:#d29922; color:#f0a500; font-weight:bold; }
+.phase-pill.active-io  { background:#0a2540; border-color:#4299e1; color:#58b4ff; font-weight:bold; }
+.phase-pill.done       { background:#0d1f12; border-color:#2ea043; color:#3fb950; }
+.phase-arrow { color:#484f58; font-size:9px; }
+
+/* Progress */
+.progress-outer { height:8px; background:#21262d; border-radius:4px; overflow:hidden; }
+.progress-inner-el { height:100%; border-radius:4px; }
+.progress-inner-el.cpu      { background:#d29922; }
+.progress-inner-el.io       { background:#4299e1; }
+.progress-inner-el.gvl-wait { background:#6e40c9; animation:pulse 0.9s infinite; }
+.thread-desc { font-size:10px; color:#8b949e; margin-top:6px; line-height:1.4; }
+.thread-desc strong { color:#e6edf3; }
+.gvl-in-thread { font-size:14px; margin-left:6px; }
+
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+/* Trace */
+.trace-section {
+  flex-shrink:0; padding:10px 14px 12px;
+  border-top:1px solid #21262d; background:#0d1117;
+}
+.trace-title {
+  font-size:9px; color:#8b949e; text-transform:uppercase;
+  letter-spacing:1px; margin-bottom:8px; display:flex; align-items:center; gap:12px;
+}
+.trace-legend { display:flex; gap:10px; margin-left:auto; }
+.trace-legend-item { display:flex; align-items:center; gap:4px; font-size:9px; color:#8b949e; }
+.legend-dot { width:10px; height:10px; border-radius:2px; }
+
+/* Meters */
+.meter-row { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+.meter-label { display:flex; justify-content:space-between; font-size:9px; color:#8b949e; text-transform:uppercase; }
+.meter-bar { height:7px; background:#21262d; border-radius:4px; overflow:hidden; }
+.meter-fill { height:100%; border-radius:4px; transition:width 0.5s ease; }
+.fill-green  { background:#3fb950; }
+.fill-yellow { background:#d29922; }
+.fill-red    { background:#f85149; }
+.fill-purple { background:#6e40c9; }
+
+/* Right panel */
+.explanation-box {
+  background:#0d1f33; border:1px solid #1a4a80; border-radius:8px;
+  padding:12px; font-size:11px; line-height:1.75; color:#c9d1d9; flex-shrink:0;
+}
+.explanation-box h3 { font-size:12px; color:#58a6ff; margin-bottom:8px; }
+
+.shop-item {
+  background:#161b22; border:1px solid #30363d; border-radius:8px;
+  padding:10px; cursor:pointer; transition:border-color 0.2s, background 0.2s; flex-shrink:0;
+}
+.shop-item:hover:not(.locked) { border-color:#58a6ff; background:#1c2b3a; }
+.shop-item.locked { opacity:0.3; cursor:not-allowed; pointer-events:none; }
+.shop-item-name { font-size:12px; font-weight:bold; margin-bottom:3px; }
+.shop-item-desc { font-size:10px; color:#8b949e; margin-bottom:6px; line-height:1.5; white-space:pre-line; }
+.shop-item-cost { font-size:11px; }
+.cost-ok { color:#58a6ff; } .cost-no { color:#f85149; }
+
+/* Completed */
+.completed-item {
+  display:flex; align-items:center; gap:6px; font-size:10px;
+  padding:4px 0; border-bottom:1px solid #21262d;
+}
+.completed-item.new { animation:fadeIn 0.3s ease; }
+.completed-money { color:#3fb950; font-weight:bold; margin-left:auto; }
+
+.alert-flash {
+  position:fixed; top:58px; left:50%; transform:translateX(-50%);
+  background:#f85149; color:white; padding:7px 18px; border-radius:6px;
+  font-size:12px; z-index:100;
+  animation:fIn 0.2s ease, fOut 0.4s ease 1.6s forwards;
+}
+@keyframes fIn  { from{opacity:0;top:48px;} to{opacity:1;top:58px;} }
+@keyframes fOut { from{opacity:1;} to{opacity:0;} }
+</style>
+</head>
+<body>
+
+<!-- Particle overlay canvas -->
+<canvas id="particles"></canvas>
+
+<header>
+  <div class="logo">● Ruby Concurrency</div>
+  <div class="stat"><div class="stat-label">Money</div><div class="stat-value" id="hdr-money">$0</div></div>
+  <div class="stat"><div class="stat-label">Req / sec</div><div class="stat-value" id="hdr-rps">0.0</div></div>
+  <div class="stat"><div class="stat-label">Completed</div><div class="stat-value" id="hdr-completed">0</div></div>
+  <div class="stat"><div class="stat-label">Queue</div><div class="stat-value" id="hdr-queue">0</div></div>
+  <div class="stat"><div class="stat-label">GVL wait</div><div class="stat-value" id="hdr-gvl" style="color:#9371e6">—</div></div>
+  <div class="phase-badge" id="phase-badge">Phase 1 — No runtime yet</div>
+</header>
+
+<div class="game-area">
+
+  <div class="panel" id="queue-panel">
+    <div class="panel-title">Incoming requests</div>
+    <div id="queue-list"></div>
+  </div>
+
+  <div class="runtime">
+    <div class="runtime-scroll" id="runtime-scroll">
+      <div class="gvl-banner free" id="gvl-banner">
+        <div class="gvl-icon" id="gvl-icon">🔑</div>
+        <div>
+          <div class="gvl-label">Global VM Lock (GVL)</div>
+          <div class="gvl-status" id="gvl-status">No threads running</div>
+        </div>
+      </div>
+      <div id="threads-container"></div>
+      <div class="meter-row">
+        <div class="meter-label"><span>Memory</span><span id="mem-text">200 / 512 MB</span></div>
+        <div class="meter-bar"><div class="meter-fill fill-green" id="mem-fill" style="width:39%"></div></div>
+      </div>
+      <div class="meter-row" id="contention-row" style="display:none">
+        <div class="meter-label"><span>GVL contention (cumulative)</span><span id="cont-text">0%</span></div>
+        <div class="meter-bar"><div class="meter-fill fill-purple" id="cont-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="trace-section">
+      <div class="trace-title">
+        Thread activity timeline (last 20s)
+        <div class="trace-legend">
+          <div class="trace-legend-item"><div class="legend-dot" style="background:#d29922"></div>CPU (GVL)</div>
+          <div class="trace-legend-item"><div class="legend-dot" style="background:#4299e1"></div>I/O wait</div>
+          <div class="trace-legend-item"><div class="legend-dot" style="background:#6e40c9"></div>Waiting GVL</div>
+          <div class="trace-legend-item"><div class="legend-dot" style="background:#1c2128"></div>Idle</div>
+        </div>
+      </div>
+      <canvas id="trace"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">What's happening</div>
+    <div class="explanation-box" id="explanation-box">
+      <h3>No threads yet</h3>
+      Requests are piling up — but there's nothing to process them.<br><br>
+      A Ruby process needs at least <strong>one thread</strong> to handle work.<br><br>
+      Buy your first thread to start. It's free.
+    </div>
+    <div class="divider"></div>
+    <div class="panel-title">Shop</div>
+    <div id="shop"></div>
+    <div class="divider"></div>
+    <div class="panel-title">Completed</div>
+    <div id="completed-list"></div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════
+const TICK_MS     = 50;
+const MEM_BASE    = 200;
+const MEM_MAX     = 512;
+const THREAD_MEM  = 50;
+const TRACE_TICKS        = 240;
+const TRACE_SAMPLE_EVERY = 4;
+const TRACE_LABEL_W = 72;
+const TRACE_ROW_H   = 22;
+const COLORS = { cpu:'#d29922', io:'#4299e1', gvl_wait:'#6e40c9', idle:'#1c2128' };
+
+// Slow phases — IO ~18s total, CPU ~20s
+const REQ_TYPES = {
+  IO: {
+    label:'I/O Request', sub:'DB query', cls:'io', emoji:'🔵',
+    phases:[
+      { type:'cpu', ms:2000,  label:'Parse request' },
+      { type:'io',  ms:14000, label:'Waiting for DB…' },
+      { type:'cpu', ms:1500,  label:'Serialize response' },
+    ],
+    reward:10,
+  },
+  CPU: {
+    label:'CPU Request', sub:'Heavy computation', cls:'cpu', emoji:'🔴',
+    phases:[
+      { type:'cpu', ms:20000, label:'Crunching numbers…' },
+    ],
+    reward:25,
+  },
+};
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const S = {
+  money:0, completed:0, tick:0,
+  threads:[], queue:[], recentDone:[],
+  gvlHolder:null, phase:1,
+  reqId:0, threadId:0,
+  rpsWindow:[],
+  gvlWaitTicks:0, totalActiveTicks:0,
+  trace:{},
+  queueRendered: new Set(),
+  completedRendered: new Set(),
+};
+
+// ══════════════════════════════════════════════
+// PARTICLE SYSTEM
+// ══════════════════════════════════════════════
+const pCanvas = document.getElementById('particles');
+const pCtx    = pCanvas.getContext('2d');
+const particles = [];
+
+// Trail of past positions per particle
+// particle: { x0,y0, x1,y1, cx,cy, color, glow, startTime, duration, trail[] }
+
+function resizeParticles() {
+  pCanvas.width  = window.innerWidth;
+  pCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeParticles);
+resizeParticles();
+
+function spawnParticle(from, to, type) {
+  const color = type === 'IO' ? '#4299e1' : '#fc8181';
+  // The particle travels through 3 segments:
+  //   1. from queue item → right edge of queue panel (horizontal)
+  //   2. down the vertical trunk to the thread's Y (vertical)
+  //   3. along the horizontal branch into the thread card (horizontal)
+  const qPanel = document.getElementById('queue-panel');
+  const trunkX = qPanel ? qPanel.getBoundingClientRect().right : from.x + 20;
+
+  particles.push({
+    type: 'pipe',
+    fromX: from.x, fromY: from.y,
+    trunkX,
+    toX: to.x, toY: to.y,
+    color,
+    startTime: performance.now(),
+    duration: 1200,
+    trail: [],
+  });
+}
+
+function getPipePoint(p, t) {
+  // Segment lengths (proportional to distance)
+  const seg1 = Math.abs(p.trunkX - p.fromX);
+  const seg2 = Math.abs(p.toY - p.fromY);
+  const seg3 = Math.abs(p.toX - p.trunkX);
+  const total = seg1 + seg2 + seg3 + 1;
+  const t1 = seg1 / total;
+  const t2 = (seg1 + seg2) / total;
+
+  if (t <= t1) {
+    const s = t / t1;
+    return { x: p.fromX + (p.trunkX - p.fromX) * s, y: p.fromY };
+  } else if (t <= t2) {
+    const s = (t - t1) / (t2 - t1);
+    return { x: p.trunkX, y: p.fromY + (p.toY - p.fromY) * s };
+  } else {
+    const s = (t - t2) / (1 - t2);
+    return { x: p.trunkX + (p.toX - p.trunkX) * s, y: p.toY };
+  }
+}
+
+function drawParticles(now) {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+
+  // Draw pipe guides (static lines from queue edge to each thread card)
+  drawPipes();
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    const elapsed = now - p.startTime;
+    const t = Math.min(1, elapsed / p.duration);
+
+    if (t >= 1) { particles.splice(i, 1); continue; }
+
+    const pos = getPipePoint(p, t);
+
+    // Record trail
+    p.trail.push({ x: pos.x, y: pos.y, t });
+    if (p.trail.length > 18) p.trail.shift();
+
+    // Draw trail (fading dots)
+    p.trail.forEach((tp, idx) => {
+      const alpha = (idx / p.trail.length) * 0.5;
+      const r     = 3 * (idx / p.trail.length);
+      pCtx.beginPath();
+      pCtx.arc(tp.x, tp.y, r, 0, Math.PI * 2);
+      pCtx.fillStyle = p.color + Math.floor(alpha * 255).toString(16).padStart(2,'0');
+      pCtx.fill();
+    });
+
+    // Draw main glowing dot
+    pCtx.beginPath();
+    pCtx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
+    pCtx.fillStyle = p.color;
+    pCtx.shadowColor = p.color;
+    pCtx.shadowBlur = 20;
+    pCtx.fill();
+    pCtx.shadowBlur = 0;
+
+    // Inner bright core
+    pCtx.beginPath();
+    pCtx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+    pCtx.fillStyle = '#ffffff';
+    pCtx.fill();
+  }
+}
+
+function drawPipes() {
+  const threadCards = document.getElementById('threads-container')?.children;
+  if (!threadCards || threadCards.length === 0) return;
+
+  const qPanel = document.getElementById('queue-panel');
+  if (!qPanel) return;
+  const trunkX = qPanel.getBoundingClientRect().right;
+
+  const branches = [];
+  for (const card of threadCards) {
+    const r = card.getBoundingClientRect();
+    if (r.width === 0) continue;
+    const tid = card.id.replace('tc-', '');
+    const t   = S.threads.find(t => String(t.id) === tid);
+    const branchY    = r.top + r.height / 2;
+    const branchEndX = r.left;
+    const hasParticle = particles.some(p => Math.abs(p.toY - branchY) < 5);
+    const color = hasParticle
+      ? (t?.request?.type === 'IO' ? '#4299e1' : '#fc8181')
+      : '#2d333b';
+    branches.push({ branchY, branchEndX, hasParticle, color, t });
+  }
+  if (branches.length === 0) return;
+
+  pCtx.save();
+  pCtx.lineWidth = 2;
+  pCtx.lineCap = 'round';
+
+  // Vertical trunk
+  pCtx.setLineDash([6, 4]);
+  pCtx.strokeStyle = '#2d333b';
+  pCtx.beginPath();
+  pCtx.moveTo(trunkX, branches[0].branchY);
+  pCtx.lineTo(trunkX, branches[branches.length - 1].branchY);
+  pCtx.stroke();
+
+  // Horizontal branches + junction dots
+  for (const b of branches) {
+    pCtx.setLineDash([6, 4]);
+    pCtx.strokeStyle = b.color;
+    pCtx.shadowColor = b.hasParticle ? b.color : 'transparent';
+    pCtx.shadowBlur  = b.hasParticle ? 12 : 0;
+    pCtx.beginPath();
+    pCtx.moveTo(trunkX, b.branchY);
+    pCtx.lineTo(b.branchEndX, b.branchY);
+    pCtx.stroke();
+    pCtx.shadowBlur = 0;
+
+    pCtx.setLineDash([]);
+    pCtx.beginPath();
+    pCtx.arc(trunkX, b.branchY, 3, 0, Math.PI * 2);
+    pCtx.fillStyle = b.color;
+    pCtx.fill();
+  }
+  pCtx.restore();
+}
+
+// ══════════════════════════════════════════════
+// TRACE CANVAS
+// ══════════════════════════════════════════════
+const traceCanvas = document.getElementById('trace');
+const traceCtx    = traceCanvas.getContext('2d');
+
+function resizeTrace() {
+  const w = traceCanvas.parentElement.clientWidth - 28;
+  traceCanvas.width  = w;
+  traceCanvas.height = TRACE_ROW_H * Math.max(1, S.threads.length) + 4;
+}
+window.addEventListener('resize', resizeTrace);
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+function init() {
+  resizeTrace();
+  renderShop();
+  setInterval(gameTick, TICK_MS);
+  setInterval(spawnRequest, 5000);
+  setInterval(updateRPS, 1000);
+  requestAnimationFrame(renderFrame);
+}
+
+// ══════════════════════════════════════════════
+// THREAD MANAGEMENT
+// ══════════════════════════════════════════════
+function addThread(free=false) {
+  const nextMem = MEM_BASE + (S.threads.length + 1) * THREAD_MEM;
+  if (nextMem > MEM_MAX) { flash('Not enough RAM!'); return false; }
+  if (!free) {
+    if (S.money < SHOP.thread.cost) { flash('Not enough money!'); return false; }
+    S.money -= SHOP.thread.cost;
+  }
+  const id = ++S.threadId;
+  S.threads.push({
+    id, label:`Thread ${id}`,
+    status:'idle', request:null, phaseIdx:0,
+    phaseElapsed:0, phaseRunWall:null,
+    receivedAt:null, needsParticle:false, particleFrom:null,
+  });
+  S.trace[id] = [];
+  resizeTrace();
+  updateMemory();
+  renderShop();
+  return true;
+}
+
+// ══════════════════════════════════════════════
+// REQUESTS
+// ══════════════════════════════════════════════
+function spawnRequest() {
+  if (S.queue.length > 12) return;
+  const pool = S.phase === 1 ? ['IO','IO','IO'] : ['IO','IO','CPU'];
+  const type = pool[Math.floor(Math.random() * pool.length)];
+  S.queue.push({ id:++S.reqId, type, def:REQ_TYPES[type] });
+}
+
+// ══════════════════════════════════════════════
+// PHASE TRANSITIONS
+// ══════════════════════════════════════════════
+function checkPhase() {
+  if (S.phase===1 && S.money>=100) {
+    S.phase=2;
+    document.getElementById('phase-badge').textContent='Phase 2 — GVL Contention';
+    document.getElementById('contention-row').style.display='flex';
+    setExplanation('CPU requests are coming!',
+      `A <strong>CPU request</strong> holds the GVL for its entire duration.<br><br>
+      When two threads both need to run Ruby code, one must <strong>wait</strong>
+      — shown in <span style="color:#b490f5">purple</span> on the timeline.<br><br>
+      The more CPU requests, the more time threads spend <em>frozen waiting for each other</em>.`
+    );
+  }
+}
+
+// ══════════════════════════════════════════════
+// GAME TICK
+// ══════════════════════════════════════════════
+function gameTick() {
+  S.tick++;
+  checkPhase();
+
+  // Assign work — record queue item DOM position BEFORE shifting
+  for (const t of S.threads) {
+    if (t.status==='idle' && S.queue.length>0) {
+      const req = S.queue[0];
+      // Capture queue item screen position before it's removed from DOM
+      const qEl = document.querySelector(`[data-req-id="${req.id}"]`);
+      if (qEl) {
+        const r = qEl.getBoundingClientRect();
+        t.particleFrom = { x: r.right - 6, y: r.top + r.height / 2 };
+        t.needsParticle = true;
+      }
+      S.queue.shift();
+      t.request=req; t.phaseIdx=0; t.phaseElapsed=0; t.phaseRunWall=null; t.status='cpu';
+      t.receivedAt=performance.now();
+    }
+  }
+
+  let waitingThisTick=0, activeThisTick=0;
+  const now = performance.now();
+
+  for (const t of S.threads) {
+    if (!t.request) { t.status='idle'; t.phaseRunWall=null; continue; }
+    activeThisTick++;
+    const phase = t.request.def.phases[t.phaseIdx];
+
+    if (phase.type==='cpu') {
+      if (S.gvlHolder===null || S.gvlHolder===t.id) {
+        S.gvlHolder=t.id;
+        if (t.status!=='cpu') t.phaseRunWall=null;
+        t.status='cpu'; t.phaseElapsed+=TICK_MS; t.phaseRunWall=now;
+      } else {
+        t.status='gvl_wait'; t.phaseRunWall=null; waitingThisTick++;
+      }
+    } else {
+      if (S.gvlHolder===t.id) { S.gvlHolder=null; grantGVL(); }
+      t.status='io'; t.phaseElapsed+=TICK_MS; t.phaseRunWall=now;
+    }
+
+    if (t.phaseElapsed>=phase.ms) {
+      t.phaseIdx++; t.phaseElapsed=0; t.phaseRunWall=null;
+      if (t.phaseIdx>=t.request.def.phases.length) complete(t);
+    }
+  }
+
+  if (S.gvlHolder===null) grantGVL();
+
+  if (activeThisTick>0) {
+    S.totalActiveTicks++;
+    S.gvlWaitTicks+=waitingThisTick;
+  }
+
+  if (S.tick % TRACE_SAMPLE_EVERY === 0) {
+    for (const t of S.threads) {
+      const buf = S.trace[t.id];
+      if (!buf) continue;
+      buf.push(t.status);
+      if (buf.length>TRACE_TICKS) buf.shift();
+    }
+  }
+
+  // Discrete DOM updates
+  updateStats();
+  renderQueueDOM();
+  renderCompletedDOM();
+  updateContention();
+  renderShopCosts();
+}
+
+function grantGVL() {
+  const w = S.threads.find(t=>t.status==='gvl_wait');
+  if (w) { S.gvlHolder=w.id; w.status='cpu'; w.phaseRunWall=performance.now(); }
+}
+
+function complete(t) {
+  const req=t.request;
+  S.money+=req.def.reward; S.completed++;
+  S.rpsWindow.push(Date.now());
+  S.recentDone.unshift({emoji:req.def.emoji, sub:req.def.sub, reward:req.def.reward, id:req.id});
+  if (S.recentDone.length>14) S.recentDone.pop();
+  if (S.gvlHolder===t.id) S.gvlHolder=null;
+  t.request=null; t.status='idle'; t.phaseIdx=0; t.phaseElapsed=0; t.phaseRunWall=null;
+}
+
+// ══════════════════════════════════════════════
+// RENDER FRAME (rAF — 60fps)
+// ══════════════════════════════════════════════
+function renderFrame(now) {
+  requestAnimationFrame(renderFrame);
+
+  // Spawn pending particles
+  for (const t of S.threads) {
+    if (t.needsParticle && t.particleFrom) {
+      const card = document.getElementById('tc-'+t.id);
+      if (card) {
+        const r = card.getBoundingClientRect();
+        spawnParticle(t.particleFrom, { x: r.left + 14, y: r.top + r.height / 2 }, t.request?.type ?? 'IO');
+      }
+      t.needsParticle = false;
+      t.particleFrom  = null;
+    }
+  }
+
+  drawParticles(now);
+  renderGVLBanner();
+  renderThreadsSmooth(now);
+  drawTrace();
+}
+
+// ══════════════════════════════════════════════
+// DISCRETE DOM
+// ══════════════════════════════════════════════
+function updateStats() {
+  document.getElementById('hdr-money').textContent      = '$' + S.money;
+  document.getElementById('hdr-completed').textContent  = S.completed;
+  document.getElementById('hdr-queue').textContent      = S.queue.length;
+}
+
+function updateRPS() {
+  const now=Date.now();
+  S.rpsWindow=S.rpsWindow.filter(t=>now-t<5000);
+  document.getElementById('hdr-rps').textContent=(S.rpsWindow.length/5).toFixed(1);
+}
+
+function updateContention() {
+  if (S.totalActiveTicks===0) return;
+  const pct=Math.round(S.gvlWaitTicks/S.totalActiveTicks*100);
+  document.getElementById('hdr-gvl').textContent=pct+'%';
+  document.getElementById('cont-text').textContent=pct+'%';
+  const f=document.getElementById('cont-fill');
+  f.style.width=pct+'%';
+  f.className='meter-fill '+(pct>60?'fill-red':pct>30?'fill-yellow':'fill-purple');
+}
+
+function renderQueueDOM() {
+  const el = document.getElementById('queue-list');
+  const visibleIds = new Set(S.queue.map(r=>String(r.id)));
+
+  for (const child of [...el.children]) {
+    if (!visibleIds.has(child.dataset.reqId)) {
+      child.remove();
+      S.queueRendered.delete(child.dataset.reqId);
+    }
+  }
+
+  S.queue.forEach((r, i) => {
+    const key = String(r.id);
+    if (!S.queueRendered.has(key)) {
+      const item = document.createElement('div');
+      item.className = `req-item ${r.def.cls} new`;
+      item.dataset.reqId = key;
+      item.innerHTML = `<div class="req-dot"></div><span>${r.def.label}</span><span class="req-reward">+$${r.def.reward}</span>`;
+      item.addEventListener('animationend', () => item.classList.remove('new'), {once:true});
+      el.insertBefore(item, el.children[i] ?? null);
+      S.queueRendered.add(key);
+    }
+  });
+}
+
+function renderCompletedDOM() {
+  const el = document.getElementById('completed-list');
+  for (const r of S.recentDone) {
+    if (S.completedRendered.has(r.id)) continue;
+    S.completedRendered.add(r.id);
+    const item = document.createElement('div');
+    item.className = 'completed-item new';
+    item.innerHTML = `<span>${r.emoji}</span><span style="color:#8b949e">#${r.id} ${r.sub}</span><span class="completed-money">+$${r.reward}</span>`;
+    item.addEventListener('animationend', () => item.classList.remove('new'), {once:true});
+    el.insertBefore(item, el.firstChild);
+    while (el.children.length > 14) el.removeChild(el.lastChild);
+  }
+}
+
+// ══════════════════════════════════════════════
+// SMOOTH THREAD RENDER
+// ══════════════════════════════════════════════
+function renderGVLBanner() {
+  const holder = S.threads.find(t=>t.id===S.gvlHolder);
+  const banner = document.getElementById('gvl-banner');
+  const status = document.getElementById('gvl-status');
+  const icon   = document.getElementById('gvl-icon');
+  if (holder) {
+    banner.className='gvl-banner held';
+    status.textContent=holder.label+' is running Ruby code';
+    status.style.color='#f0a500';
+    icon.style.transform='rotate(-25deg) scale(1.15)';
+  } else {
+    banner.className='gvl-banner free';
+    status.textContent = S.threads.length ? 'Free — no Ruby code running' : 'No threads running';
+    status.style.color='#3fb950';
+    icon.style.transform='rotate(0deg) scale(1)';
+  }
+}
+
+function renderThreadsSmooth(now) {
+  const container = document.getElementById('threads-container');
+
+  for (const t of S.threads) {
+    let card = document.getElementById('tc-'+t.id);
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'tc-'+t.id;
+      card.innerHTML = `
+        <div class="thread-top">
+          <span class="thread-name-label"></span>
+          <span class="thread-badge-el"></span>
+        </div>
+        <div class="req-tag-el"></div>
+        <div class="phase-stepper-el"></div>
+        <div class="progress-outer"><div class="progress-inner-el" style="width:0%"></div></div>
+        <div class="thread-desc-el"></div>
+      `;
+      container.appendChild(card);
+    }
+
+    const nameEl    = card.querySelector('.thread-name-label');
+    const badgeEl   = card.querySelector('.thread-badge-el');
+    const reqTagEl  = card.querySelector('.req-tag-el');
+    const stepperEl = card.querySelector('.phase-stepper-el');
+    const progEl    = card.querySelector('.progress-inner-el');
+    const descEl    = card.querySelector('.thread-desc-el');
+
+    const hasGVL = S.gvlHolder===t.id;
+    const req    = t.request;
+    const def    = req?.def;
+    const phase  = def?.phases[t.phaseIdx];
+
+    // Smooth progress via wall-clock interpolation
+    let pct = 0;
+    if (phase) {
+      let elapsed = t.phaseElapsed;
+      if ((t.status==='cpu'||t.status==='io') && t.phaseRunWall) {
+        elapsed += Math.min(TICK_MS, now - t.phaseRunWall);
+      }
+      pct = Math.min(100, elapsed / phase.ms * 100);
+    }
+
+    card.className = 'thread-card t-' + t.status;
+
+    nameEl.innerHTML = t.label + (hasGVL ? '<span class="gvl-in-thread">🔑</span>' : '');
+
+    // Request tag
+    if (req) {
+      const tagHtml = `<div class="req-tag ${req.def.cls}"><div class="req-dot"></div><span>${req.def.label}</span><span class="req-tag-id">#${req.id}</span></div>`;
+      if (reqTagEl.innerHTML !== tagHtml) reqTagEl.innerHTML = tagHtml;
+    } else {
+      if (reqTagEl.innerHTML) reqTagEl.innerHTML = '';
+    }
+
+    // Badge
+    const BADGES = {
+      idle:     ['badge-idle',     'idle'],
+      cpu:      ['badge-cpu',      '⚙️ Running (GVL)'],
+      io:       ['badge-io',       '⏳ I/O wait'],
+      gvl_wait: ['badge-gvl-wait', '🔒 Waiting for GVL'],
+    };
+    const [bc, bt] = BADGES[t.status] ?? BADGES.idle;
+    badgeEl.className = 'thread-badge '+bc;
+    if (badgeEl.textContent !== bt) badgeEl.textContent = bt;
+
+    // Phase stepper
+    if (def) {
+      let html = '';
+      def.phases.forEach((p,i) => {
+        let cls;
+        if (i < t.phaseIdx) cls='done';
+        else if (i===t.phaseIdx) cls = t.status==='gvl_wait' ? 'active-cpu' : `active-${p.type}`;
+        else cls='pending';
+        if (i>0) html+='<span class="phase-arrow">›</span>';
+        html+=`<span class="phase-pill ${cls}">${p.type==='cpu'?'⚙️':'⏳'} ${p.label}</span>`;
+      });
+      if (stepperEl.innerHTML !== html) stepperEl.innerHTML = html;
+    } else {
+      if (stepperEl.innerHTML) stepperEl.innerHTML = '';
+    }
+
+    // Progress
+    progEl.style.width = pct.toFixed(2) + '%';
+    const pc = t.status==='gvl_wait' ? 'gvl-wait' : t.status==='cpu' ? 'cpu' : t.status==='io' ? 'io' : '';
+    if (progEl.className !== 'progress-inner-el '+pc) progEl.className = 'progress-inner-el '+pc;
+
+    // Description
+    const blocker = S.threads.find(x=>x.id===S.gvlHolder);
+    const DESC = {
+      idle:     'Waiting for a request…',
+      cpu:      phase ? `<strong>${phase.label}</strong> — holding the GVL, running at full speed` : '',
+      io:       phase ? `<strong>${phase.label}</strong> — GVL released, other threads can run Ruby` : '',
+      gvl_wait: `<strong>Blocked</strong> — ${blocker?.label??'?'} holds the GVL. Frozen until it finishes.`,
+    };
+    const nd = DESC[t.status] ?? '';
+    if (descEl.innerHTML !== nd) descEl.innerHTML = nd;
+  }
+}
+
+// ══════════════════════════════════════════════
+// TRACE
+// ══════════════════════════════════════════════
+function drawTrace() {
+  if (!S.threads.length) return;
+  const n = S.threads.length;
+  traceCanvas.height = TRACE_ROW_H * n + 4;
+  const W     = traceCanvas.width;
+  const drawW = W - TRACE_LABEL_W;
+
+  traceCtx.fillStyle='#0d1117';
+  traceCtx.fillRect(0,0,W,traceCanvas.height);
+
+  S.threads.forEach((t,row) => {
+    const buf   = S.trace[t.id] || [];
+    const y     = row * TRACE_ROW_H + 2;
+    const tickW = drawW / TRACE_TICKS;
+
+    traceCtx.fillStyle='#8b949e';
+    traceCtx.font='9px Courier New';
+    traceCtx.textBaseline='middle';
+    traceCtx.fillText(t.label, 4, y + TRACE_ROW_H/2 - 1);
+
+    buf.forEach((s,i) => {
+      traceCtx.fillStyle = COLORS[s] || COLORS.idle;
+      traceCtx.fillRect(TRACE_LABEL_W + i*tickW, y, Math.ceil(tickW)+0.5, TRACE_ROW_H-4);
+    });
+
+    const nowX = TRACE_LABEL_W + buf.length * tickW;
+    traceCtx.strokeStyle='#58a6ff44';
+    traceCtx.lineWidth=1;
+    traceCtx.beginPath(); traceCtx.moveTo(nowX,y); traceCtx.lineTo(nowX,y+TRACE_ROW_H-4); traceCtx.stroke();
+  });
+
+  traceCtx.strokeStyle='#30363d'; traceCtx.lineWidth=1;
+  traceCtx.beginPath(); traceCtx.moveTo(TRACE_LABEL_W,0); traceCtx.lineTo(TRACE_LABEL_W,traceCanvas.height); traceCtx.stroke();
+}
+
+// ══════════════════════════════════════════════
+// SHOP
+// ══════════════════════════════════════════════
+const SHOP = {
+  thread: {
+    cost: 0,
+    name: '🚀 Start your server',
+    action() {
+      const n = S.threads.length;
+      const isFirst = n === 0;
+      if (!addThread(isFirst)) return;
+      SHOP.thread.cost = 100;
+      SHOP.thread.name = '➕ Add Thread';
+
+      if (isFirst) {
+        document.getElementById('phase-badge').textContent='Phase 1 — Threads';
+        setExplanation('Your first thread!',
+          `The thread picks a request from the queue and processes it.<br><br>
+          Watch the <strong>glowing dot</strong> fly from the queue into the thread — that's your request entering the pipeline.<br><br>
+          During the <span style="color:#58b4ff">DB wait</span> phase, the thread just waits. That's wasted capacity…`
+        );
+      } else if (n+1===2) {
+        setExplanation('Two threads!',
+          `While Thread 1 is blocked on I/O, Thread 2 can pick up and run the next request.<br><br>
+          Watch two dots fly simultaneously — two pipes active at once.<br><br>
+          During DB wait, the GVL is <strong>released</strong> — the other thread gets to run Ruby code.`
+        );
+      } else if (n+1===3) {
+        setExplanation('3 threads — GVL contention',
+          `Now watch for <span style="color:#b490f5"><strong>purple</strong></span> on the timeline.<br><br>
+          If two CPU requests are assigned at the same time, only one can hold the GVL. The other freezes. The pipe is full but nothing moves through it.`
+        );
+      } else {
+        setExplanation(`${n+1} threads`,
+          `More threads = more pipes, but only one can run Ruby code at a time for CPU work.<br><br>
+          Shopify: <em>"to saturate N threads, you need &gt;1/N of time in I/O"</em>. At 4 threads: 75%+ I/O needed.`
+        );
+      }
+      renderShop();
+    }
+  }
+};
+
+function renderShop() {
+  const memOk = MEM_BASE + (S.threads.length+1)*THREAD_MEM <= MEM_MAX;
+  document.getElementById('shop').innerHTML = `
+    <div class="shop-item ${memOk?'':'locked'}" onclick="SHOP.thread.action()">
+      <div class="shop-item-name">${SHOP.thread.name}</div>
+      <div class="shop-item-desc">One OS thread. Shares the GVL with all others.\nUses ${THREAD_MEM}MB RAM.</div>
+      <div class="shop-item-cost" id="shop-cost">${SHOP.thread.cost===0 ? '🎁 Free' : '💰 $'+SHOP.thread.cost}</div>
+    </div>
+    <div style="font-size:10px;color:#484f58;padding:6px 2px;line-height:1.5">
+      Fibers &amp; Ractors → unlocked in Phase 3 &amp; 4…
+    </div>
+  `;
+}
+
+function renderShopCosts() {
+  const el=document.getElementById('shop-cost');
+  if (!el || SHOP.thread.cost===0) return;
+  el.className='shop-item-cost '+(S.money>=SHOP.thread.cost?'cost-ok':'cost-no');
+}
+
+function updateMemory() {
+  const used=MEM_BASE+S.threads.length*THREAD_MEM;
+  const pct=(used/MEM_MAX*100).toFixed(0);
+  document.getElementById('mem-text').textContent=`${used} / ${MEM_MAX} MB`;
+  const f=document.getElementById('mem-fill');
+  f.style.width=pct+'%';
+  f.className='meter-fill '+(pct>80?'fill-red':pct>60?'fill-yellow':'fill-green');
+}
+
+function setExplanation(title, body) {
+  document.getElementById('explanation-box').innerHTML=`<h3>${title}</h3>${body}`;
+}
+function flash(msg) {
+  const el=document.createElement('div');
+  el.className='alert-flash'; el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 2000);
+}
+
+init();
+</script>
+</body>
+</html>

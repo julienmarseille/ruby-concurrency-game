@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ruby Concurrency Simulator</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <header id="hdr">
+    <div class="logo">● Ruby Concurrency</div>
+    <div class="stat"><div class="stat-label">Money</div><div class="stat-value" id="hdr-money">$0</div></div>
+    <div class="stat"><div class="stat-label">GVL wait</div><div class="stat-value" id="hdr-gvl" style="color:#9371e6">—</div></div>
+    <div class="stat"><div class="stat-label">Req / min</div><div class="stat-value" id="hdr-rps" style="color:#3fb950">—</div></div>
+    <div class="phase-badge" id="phase-badge">Phase 1 — No runtime</div>
+  </header>
+
+  <div class="game-layout">
+    <!-- Left: incoming queue (HTML) -->
+    <div class="side-panel" id="queue-panel">
+      <div class="panel-title">Incoming requests</div>
+      <div id="queue-list"></div>
+    </div>
+
+    <!-- Center: threads + monitor -->
+    <div id="game-container">
+      <div id="threads-area"><div id="threads-inner"></div></div>
+      <div id="monitor-area" style="display:none">
+        <div id="monitor-resize-handle"><span>Monitoring</span></div>
+        <div id="monitor-canvas-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Right: info + shop (HTML) -->
+    <div class="side-panel" id="info-panel">
+      <div class="panel-title">What's happening</div>
+      <div class="explanation-box" id="explanation-box">
+        <h3>No threads yet</h3>
+        Requests are piling up — but there's nothing to process them.<br><br>
+        A Ruby process needs at least <strong>one thread</strong> to handle work.<br><br>
+        Buy your first thread to start. It's free.
+      </div>
+      <div class="divider"></div>
+      <div class="panel-title">Shop</div>
+      <div id="shop"></div>
+      <div class="divider"></div>
+      <div class="panel-title">Completed</div>
+      <div id="completed-list"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

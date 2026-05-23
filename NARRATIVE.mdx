@@ -1,0 +1,121 @@
+# Ruby Concurrency Simulator — Narrative & Roadmap
+
+## La formule clé (Shopify)
+
+> "Applications need to spend less than 1/N of their time on I/O to saturate N threads.
+> For example: 50% I/O for 2 threads, 75% I/O for 4 threads."
+
+Dans le jeu, une requête IO = 2000ms CPU + 14000ms IO + 1500ms CPU = **17500ms total → 80% IO**.
+Ça signifie que 5 threads suffisent à saturer le CPU. C'est ce que le joueur découvre en jouant.
+
+---
+
+## Arc narratif
+
+```
+Phase 1 — 1 thread, IO only     → "Pourquoi ça queue ?"
+Phase 2 — Multi-threads + CPU   → "Le GVL explique la contention"
+           + formule IO%         → "Quand les threads aident VRAIMENT"
+Phase 3 — Processes (Unicorn)   → "Vrai parallélisme, vrai coût mémoire"
+Phase 4 — Fibers (Falcon)       → "Légèreté + coopératif = différent des threads"
+Phase 5 — Ractors               → "L'avenir : isolés, parallèles, mais contraignants"
+```
+
+La progression n'est pas "threads sont mauvais, utilisez X".
+C'est **comprendre ce qu'on optimise** : débit IO, CPU, ou mémoire.
+
+---
+
+## Phase 1 — Un thread, IO seulement *(implémenté)*
+
+**Ce qu'on apprend :** Un seul thread bloque toute la queue pendant le traitement.
+L'IO libère le GVL mais un seul thread ne peut pas en profiter.
+
+---
+
+## Phase 2 — Multi-threads + requêtes CPU *(implémenté)*
+
+**Ce qu'on apprend :** Les threads parallélisent l'IO (GVL relâché pendant la DB).
+Les requêtes CPU se bloquent mutuellement (GVL tenu) → contention visible en violet.
+
+**À ajouter :** Afficher dynamiquement la formule `IO requis = (N-1)/N` selon le nb de threads.
+Ex : "Il te faut 66% d'IO pour saturer 3 threads — tu en as 80%, ça tient."
+
+---
+
+## Phase 3 — Processus (modèle Unicorn)
+
+**Ce qu'on apprend :** Les processus donnent une vraie parallélisation CPU (chaque process
+a son propre GVL), mais au coût mémoire.
+
+**Formules mémoire (Shopify) :**
+- Sans CoW : `N × (mémoire_statique + mémoire_requête)`
+- Avec CoW  : `mémoire_statique + N × mémoire_requête`
+
+En pratique : +427 MiB par worker process vs +257 MiB par thread.
+
+**Visuel :** Plusieurs boîtes "processus" séparées, chacune avec 1 thread.
+Pas de GVL partagé → deux CPU orange simultanément, jamais de violet.
+
+**Mécanique :** La memory bar monte beaucoup plus vite.
+Le joueur voit : "Je peux paralléliser le CPU, mais je manque de RAM à 4 workers."
+
+**Aha moment :** Deux requêtes CPU tournent en orange simultanément pour la 1ère fois.
+
+---
+
+## Phase 4 — Fibers (modèle Falcon / Async gem)
+
+**Ce qu'on apprend :** Les fibers sont coopératifs. Un seul thread, des milliers de slots légers.
+IO non-bloquant : quand une fiber attend la DB, une autre reprend immédiatement.
+
+**Citation Shopify :**
+> "Cooperatively-scheduled lightweight threads, subject to identical GVL constraints as regular
+> threads. They suit I/O-intensive applications but provide minimal benefits for CPU-heavy workloads."
+
+**Visuel :** Un seul thread card avec N mini-fiber tracks empilées à l'intérieur.
+Quand une fiber hit l'IO → elle se suspend (grisée), une autre s'active instantanément.
+Pas de temps mort sur le thread.
+
+**Différence clé :** Avec les threads, pendant l'IO le slot est "vide" (thread en attente).
+Avec les fibers, le slot est immédiatement réutilisé → même débit, mémoire minuscule.
+
+**Cas limite (anti-pattern) :** Une fiber CPU qui ne yield jamais bloque TOUTES les autres.
+
+---
+
+## Phase 5 — Ractors *(bonus/avancé)*
+
+**Ce qu'on apprend :** Vraie parallélisation CPU sans GVL partagé.
+Communication par message-passing uniquement (pas d'état mutable partagé).
+
+**Citation Shopify :**
+> "Offer parallel code execution with individual locks but cannot share mutable global state,
+> presenting significant architectural challenges requiring library refactoring."
+
+**Visuel :** Plusieurs bulles isolées ("Ractor 1", "Ractor 2"), chacune avec son GVL local.
+Deux requêtes CPU orange simultanément dans des Ractors différents.
+Communication = paquets animés échangés entre bulles (coût de sérialisation visible).
+
+**Mécanique :** Ractors gagnent sur CPU-bound pur, perdent si beaucoup de communication.
+
+---
+
+## Éléments à intégrer (par priorité)
+
+| Élément | Phase | Valeur pédagogique |
+|---|---|---|
+| Formule dynamique `IO% = (N-1)/N` | 2 | Rend la formule Shopify visible en temps réel |
+| GC pause (tous les threads freezent) | 2-3 | *"When GC triggers, all threads are paused"* |
+| Boîtes processus séparées | 3 | Parallélisme CPU visible pour la 1ère fois |
+| Memory bar montant par processus | 3 | Coût mémoire réel vs threads |
+| Fiber slots dans un thread | 4 | Légèreté et coopératif |
+| Blocking fiber anti-pattern | 4 | Fiber CPU qui gèle toutes les autres |
+| Ractor bubbles + message passing | 5 | Isolement, sérialisation, vraie parallélisation |
+
+---
+
+## Sources
+
+- Shopify Engineering — "To Thread or Not to Thread: An In-Depth Look at Ruby's Execution Models"
+  https://shopify.engineering/ruby-execution-models (Jean Boussier, 2022)
