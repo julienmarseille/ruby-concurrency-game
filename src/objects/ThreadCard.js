@@ -108,8 +108,8 @@ export class ThreadCard extends Container {
         this._gvlMask.roundRect(0, 0, W, CARD_H, 8).fill(0xffffff);
         const step = 16;
         const sw   = 8;
-        for (let x = -CARD_H; x < W + CARD_H; x += step) {
-          this._gvlOverlay.moveTo(x, 0).lineTo(x + CARD_H, CARD_H)
+        for (let x = -sw; x < W + CARD_H + sw; x += step) {
+          this._gvlOverlay.moveTo(x, -sw).lineTo(x - CARD_H - sw, CARD_H + sw)
             .stroke({ width: sw, color: C.gvlWait, alpha: 0.45 });
         }
       }
