@@ -12,11 +12,13 @@ export const MEM_Y           = 20;
 export const MEM_DISPLAY_MAX = MEM_BASE + THREAD_MEM * 6;
 
 // ─── Graph dimensions (shared by TraceGraph + ThroughputGraph) ───────────────
-export const TRACE_TICKS        = 300;
-export const TRACE_SAMPLE_EVERY = 4;
-export const GRAPH_LABEL_W      = 72;
-export const TRACE_ROW_H        = 22;
-export const THROUGHPUT_H       = 44;
+export const TRACE_TICKS           = 300;
+export const TRACE_SAMPLE_EVERY    = 4;
+export const GRAPH_LABEL_W         = 72;
+export const TRACE_ROW_H           = 22;
+export const THROUGHPUT_H          = 88;
+export const OVERVIEW_AGGREGATE    = 10;  // overview samples every 10 × 200ms = 2s
+export const OVERVIEW_TICKS        = 300; // 300 × 2s = 10 min
 
 // ─── Z-index layers ──────────────────────────────────────────────────────────
 export const LAYERS = {
@@ -56,6 +58,7 @@ export const CH = {
   io:      '#4299e1',
   gvlWait: '#6e40c9',
   idle:    '#1c2128',
+  text:    '#cdd9e5',
   textDim: '#8b949e',
   accent:  '#58a6ff',
 };
@@ -66,7 +69,6 @@ export const EVENTS = {
   REQUEST_SPAWNED:   'requestSpawned',
   REQUEST_ASSIGNED:  'requestAssigned',
   REQUEST_COMPLETED: 'requestCompleted',
-  PHASE_CHANGED:     'phaseChanged',
   UPGRADE_UNLOCKED:  'upgradeUnlocked',
 };
 
@@ -98,13 +100,13 @@ export const REQ_TYPES = {
     color: 0xe8a838,
     colorStr: '#e8a838',
     phases: [
-      { type: 'cpu', ms: 400,  label: 'Parse params'   },
-      { type: 'io',  ms: 1200, label: 'Auth check'     },
-      { type: 'cpu', ms: 800,  label: 'Business logic' },
-      { type: 'io',  ms: 1800, label: 'DB write'       },
-      { type: 'cpu', ms: 400,  label: 'Respond'        },
+      { type: 'cpu', ms: 1000, label: 'Parse params'   },
+      { type: 'io',  ms: 2000, label: 'Auth check'     },
+      { type: 'cpu', ms: 1000, label: 'Business logic' },
+      { type: 'io',  ms: 2000, label: 'DB write'       },
+      { type: 'cpu', ms: 2000, label: 'Respond'        },
     ],
-    // IO = 3000 / 4600 ≈ 65% → saturates at 2–3 threads
+    // IO = 4000 / 8000 = 50% → saturates at 2 threads
     reward: 18,
   },
 
@@ -116,13 +118,13 @@ export const REQ_TYPES = {
     color: 0xfc8181,
     colorStr: '#fc8181',
     phases: [
-      { type: 'cpu', ms: 1500, label: 'Validate input'  },
-      { type: 'io',  ms: 1000, label: 'Fetch records'   },
-      { type: 'cpu', ms: 4500, label: 'Render PDF'      },
-      { type: 'io',  ms: 500,  label: 'Write to disk'   },
-      { type: 'cpu', ms: 1500, label: 'Compress & send' },
+      { type: 'cpu', ms: 2000, label: 'Validate input'  },
+      { type: 'io',  ms: 400,  label: 'Fetch records'   },
+      { type: 'cpu', ms: 3200, label: 'Render PDF'      },
+      { type: 'io',  ms: 400,  label: 'Write to disk'   },
+      { type: 'cpu', ms: 2000, label: 'Compress & send' },
     ],
-    // IO = 1500 / 9000 ≈ 17% → barely 1 thread useful
+    // IO = 800 / 8000 = 10% → barely benefits from extra threads
     reward: 30,
   },
 };

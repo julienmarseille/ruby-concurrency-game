@@ -12,7 +12,6 @@ export class GameState {
     this.queue      = [];
     this.recentDone = [];
     this.gvlHolder  = null;
-    this.phase      = 1;
     this._reqId     = 0;
     this._threadId  = 0;
     this.upgrades   = new Set();
@@ -28,11 +27,53 @@ export class GameState {
     this.money -= def.cost;
     this.upgrades.add(id);
     this._events.emit(EVENTS.UPGRADE_UNLOCKED, id);
+    if (id === 'mixed_requests')  this._injectRequests('MIXED',  30);
+    if (id === 'report_requests') this._injectRequests('REPORT', 30);
     return true;
+  }
+
+  _injectRequests(type, count) {
+    for (let i = 0; i < count; i++) {
+      const req = { id: ++this._reqId, type, def: REQ_TYPES[type] };
+      this.queue.push(req);
+      this._events.emit(EVENTS.REQUEST_SPAWNED, req);
+    }
   }
 
   availableUpgrades() {
     return Object.values(UPGRADES).filter(u => !this.upgrades.has(u.id));
+  }
+
+  shopData() {
+    const MAX_THREADS = 8;
+    const threadNodes = Array.from({ length: MAX_THREADS }, (_, i) => {
+      const n     = i + 1;
+      const owned = this.threads.length >= n;
+      const ramOk = MEM_BASE + n * THREAD_MEM <= MEM_MAX;
+      const cost  = n === 1 ? 0 : 100;
+      return {
+        id:         `thread_${n}`,
+        name:       n === 1 ? 'Start Server' : `Thread ${n}`,
+        icon:       n === 1 ? '🚀' : '🧵',
+        desc:       `OS thread · shares the GVL · uses ${THREAD_MEM}MB RAM`,
+        cost,
+        isThread:   true,
+        isFree:     cost === 0,
+        owned,
+        unlocked:   (n === 1 || this.threads.length >= n - 1) && ramOk,
+        affordable: owned || cost === 0 || this.money >= cost,
+        moneyPct:   cost > 0 ? Math.min(1, this.money / cost) : 1,
+      };
+    });
+    const upgrades = Object.values(UPGRADES).map(u => ({
+      ...u,
+      isThread:   false,
+      owned:      this.upgrades.has(u.id),
+      unlocked:   !u.requires || this.upgrades.has(u.requires),
+      affordable: this.money >= u.cost,
+      moneyPct:   Math.min(1, this.money / u.cost),
+    }));
+    return [...threadNodes, ...upgrades];
   }
 
   addThread(free = false) {
@@ -60,9 +101,9 @@ export class GameState {
 
   spawnRequest() {
     if (this.queue.length > 12) return null;
-    const pool = this.phase === 1
-      ? ['DB_REQUEST', 'DB_REQUEST', 'DB_REQUEST']
-      : ['DB_REQUEST', 'DB_REQUEST', 'MIXED', 'REPORT'];
+    const pool = ['DB_REQUEST', 'DB_REQUEST', 'DB_REQUEST'];
+    if (this.hasUpgrade('mixed_requests'))  pool.push('MIXED', 'MIXED');
+    if (this.hasUpgrade('report_requests')) pool.push('REPORT');
     const type = pool[Math.floor(Math.random() * pool.length)];
     const req  = { id: ++this._reqId, type, def: REQ_TYPES[type] };
     this.queue.push(req);
@@ -80,11 +121,6 @@ export class GameState {
 
   step() {
     this.tick++;
-
-    if (this.phase === 1 && this.money >= 100) {
-      this.phase = 2;
-      this._events.emit(EVENTS.PHASE_CHANGED, 2);
-    }
 
     for (const t of this.threads) {
       if (t.status === 'idle' && this.queue.length > 0) {
@@ -141,6 +177,7 @@ export class GameState {
   }
 
   get throughputWindow() { return this._metrics.throughputWindow; }
+  get overviewWindow()   { return this._metrics.overviewWindow; }
   get gvlWaitPct()       { return this._metrics.gvlWaitPct; }
   get totalActiveTicks() { return this._metrics.hasData; }
   get threadCost()       { return this.threads.length === 0 ? 0 : 100; }

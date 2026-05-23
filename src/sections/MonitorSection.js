@@ -41,7 +41,7 @@ export class MonitorSection {
       this._memMeter.draw(MEM_Y, this._app.screen.width, gs.memPct, gs.memUsed, MEM_DISPLAY_MAX);
     }
     if (this._hasThroughput) {
-      this._throughputGraph.draw(gs.throughputWindow);
+      this._throughputGraph.draw(gs.throughputWindow, gs.overviewWindow);
     }
   }
 

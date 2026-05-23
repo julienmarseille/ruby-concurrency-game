@@ -1,4 +1,46 @@
-import { THREAD_MEM } from '../config.js';
+const NODE_W      = 34;
+const MAX_THREADS = 8;
+const STEP        = 44;
+
+const TREE_NODES = [
+  { id: 'thread_1',         x: 113, y: 8,              tooltipAlign: 'center' },
+  { id: 'request_tracing',  x: 8,   y: 8 + STEP,       tooltipAlign: 'left'   },
+  { id: 'mixed_requests',   x: 113, y: 8 + STEP,       tooltipAlign: 'center' },
+  ...Array.from({ length: MAX_THREADS - 1 }, (_, i) => ({
+    id:           `thread_${i + 2}`,
+    x:            218,
+    y:            8 + (i + 1) * STEP,
+    tooltipAlign: 'right',
+  })),
+  { id: 'monitoring',       x: 8,   y: 8 + STEP * 2,   tooltipAlign: 'left'   },
+  { id: 'throughput_graph', x: 52,  y: 8 + STEP * 2,   tooltipAlign: 'left'   },
+  { id: 'report_requests',  x: 113, y: 8 + STEP * 2,   tooltipAlign: 'center' },
+];
+
+const TREE_EDGES = [
+  ['thread_1',        'request_tracing'],
+  ['thread_1',        'mixed_requests'],
+  ['thread_1',        'thread_2'],
+  ['request_tracing', 'monitoring'],
+  ['request_tracing', 'throughput_graph'],
+  ['mixed_requests',  'report_requests'],
+  ...Array.from({ length: MAX_THREADS - 2 }, (_, i) => [`thread_${i + 2}`, `thread_${i + 3}`]),
+];
+
+function edgePath(from, to) {
+  if (from.y === to.y) {
+    const hy = from.y + NODE_W / 2;
+    return `M ${from.x + NODE_W} ${hy} L ${to.x} ${hy}`;
+  }
+  const x1 = from.x + NODE_W / 2, y1 = from.y + NODE_W;
+  const x2 = to.x   + NODE_W / 2, y2 = to.y;
+  if (Math.abs(x1 - x2) < 2) return `M ${x1} ${y1} L ${x2} ${y2}`;
+  const midY = (y1 + y2) / 2;
+  return `M ${x1} ${y1} C ${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`;
+}
+
+const TREE_W = 218 + NODE_W + 4;
+const TREE_H = 8 + MAX_THREADS * STEP;
 
 export class InfoPanel {
   constructor(onBuyThread, onBuyUpgrade) {
@@ -11,9 +53,10 @@ export class InfoPanel {
     this._shopKey       = null;
 
     this._shopEl.addEventListener('click', e => {
-      const upgradeEl = e.target.closest('.upgrade-item');
-      if (upgradeEl) { this._onBuyUpgrade(upgradeEl.dataset.upgradeId); return; }
-      if (e.target.closest('#btn-buy-thread')) this._onBuyThread();
+      const node = e.target.closest('[data-action]');
+      if (!node) return;
+      if (node.dataset.action === 'upgrade') this._onBuyUpgrade(node.dataset.id);
+      if (node.dataset.action === 'thread')  this._onBuyThread();
     });
   }
 
@@ -21,37 +64,66 @@ export class InfoPanel {
     this._explanationEl.innerHTML = `<h3>${title}</h3>${body}`;
   }
 
-  renderShop(canAdd, money, availableUpgrades = [], threadCost = 0, threadName = '🚀 Start your server') {
-    const canAffordThread = money >= threadCost;
-    const upgradeKey      = availableUpgrades.map(u => `${u.id}:${money >= u.cost}`).join(',');
-    const key = `${canAdd}|${canAffordThread}|${threadName}|${upgradeKey}`;
+  renderShop(items) {
+    const key = items.map(u => `${u.id}:${u.owned}:${u.affordable}:${u.unlocked}`).join(',');
     if (key === this._shopKey) return;
     this._shopKey = key;
 
-    const upgradesHtml = availableUpgrades.map(u => {
-      const canAfford = money >= u.cost;
-      const costClass = canAfford ? 'cost-ok' : 'cost-no';
+    const byId = Object.fromEntries(items.map(u => [u.id, u]));
+
+    const svgEdges = TREE_EDGES.map(([fromId, toId]) => {
+      const fromPos  = TREE_NODES.find(n => n.id === fromId);
+      const toPos    = TREE_NODES.find(n => n.id === toId);
+      if (!fromPos || !toPos) return '';
+      const fromItem = byId[fromId];
+      const toItem   = byId[toId];
+      const done   = fromItem?.owned && toItem?.owned;
+      const active = fromItem?.owned && toItem && !toItem.owned;
+      const cls    = done ? 'tree-edge tree-edge--done' : active ? 'tree-edge tree-edge--active' : 'tree-edge';
+      return `<path class="${cls}" d="${edgePath(fromPos, toPos)}" fill="none"/>`;
+    }).join('');
+
+    const svg = `<svg class="tree-svg" width="${TREE_W}" height="${TREE_H}">${svgEdges}</svg>`;
+
+    const nodes = TREE_NODES.map(nodePos => {
+      const item = byId[nodePos.id];
+      if (!item) return '';
+
+      let stateCls = '';
+      let icon     = item.icon ?? '🧵';
+      let badge    = '';
+
+      if (item.owned) {
+        stateCls = 'tree-node--owned';
+        badge    = '<span class="tree-node-badge">✓</span>';
+      } else if (!item.unlocked) {
+        stateCls = 'tree-node--locked';
+        icon     = '🔒';
+      } else if (item.affordable) {
+        stateCls = 'tree-node--affordable';
+      }
+
+      const action  = item.isThread ? 'thread' : 'upgrade';
+      const cost    = item.isFree || item.cost === 0 ? 'Free' : `$${item.cost}`;
+      const tooltip = `
+        <div class="tree-tooltip tree-tooltip--${nodePos.tooltipAlign}">
+          <div class="tree-tooltip-name">${item.name}</div>
+          <div class="tree-tooltip-cost ${item.affordable || item.owned ? 'cost-ok' : 'cost-no'}">${item.owned ? '✓ owned' : cost}</div>
+          <div class="tree-tooltip-desc">${item.desc ?? ''}</div>
+        </div>`;
+
       return `
-        <div class="shop-item upgrade-item" data-upgrade-id="${u.id}">
-          <div class="shop-item-name">${u.name}</div>
-          <div class="shop-item-desc">${u.desc}</div>
-          <div class="shop-item-cost ${costClass}">💰 $${u.cost}</div>
+        <div class="tree-node ${stateCls}"
+             style="left:${nodePos.x}px;top:${nodePos.y}px"
+             data-action="${item.owned || !item.unlocked ? '' : action}"
+             data-id="${item.id}">
+          <span class="tree-node-icon">${icon}</span>
+          ${badge}
+          ${tooltip}
         </div>`;
     }).join('');
 
-    const locked    = !canAdd;
-    const costStr   = threadCost === 0 ? '🎁 Free' : `💰 $${threadCost}`;
-    const costClass = (threadCost === 0 || canAffordThread) ? 'cost-ok' : 'cost-no';
-
-    this._shopEl.innerHTML = `
-      ${upgradesHtml}
-      <div class="shop-item ${locked ? 'locked' : ''}" id="btn-buy-thread">
-        <div class="shop-item-name">${threadName}</div>
-        <div class="shop-item-desc">One OS thread. Shares the GVL with all others. Uses ${THREAD_MEM}MB RAM.</div>
-        <div class="shop-item-cost ${costClass}">${costStr}</div>
-      </div>
-      <div style="font-size:10px;color:#484f58;padding:6px 2px;line-height:1.5">Fibers &amp; Ractors → Phase 3 &amp; 4…</div>
-    `;
+    this._shopEl.innerHTML = `<div class="tree-wrap" style="height:${TREE_H}px;width:${TREE_W}px">${svg}${nodes}</div>`;
   }
 
   addCompleted(recentDone) {

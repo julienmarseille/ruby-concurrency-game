@@ -5,7 +5,7 @@ export class MemoryMeter {
   constructor(stage) {
     this._bg   = new Graphics();
     this._fill = new Graphics();
-    this._text = new Text({ text: '', style: { fontFamily: 'Courier New', fontSize: 9, fill: CH.textDim }});
+    this._text = new Text({ text: '', style: { fontFamily: 'Courier New', fontSize: 10, fill: CH.text }});
     this._bg.zIndex   = LAYERS.MEMORY_METER;
     this._fill.zIndex = LAYERS.MEMORY_METER;
     this._text.zIndex = LAYERS.MEMORY_TEXT;

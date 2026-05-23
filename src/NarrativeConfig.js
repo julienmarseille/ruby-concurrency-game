@@ -5,14 +5,18 @@ export const NARRATIVE = {
       Buy your first thread to start. It's free.`,
   },
 
-  phases: {
-    2: {
-      badge: 'Phase 2 — Mixed workload',
+  upgrades: {
+    mixed_requests: {
       title: 'Mixed workload incoming!',
-      body: `New request types are arriving:<br><br>
-      🟡 <strong>POST /checkout</strong> — auth + DB write. 65% I/O → 2-3 threads useful.<br><br>
-      🔴 <strong>GET /export.pdf</strong> — renders a PDF. Only 17% I/O — adding threads <strong>barely helps</strong>.<br><br>
-      Watch the <span style="color:#b490f5"><strong>purple blocks</strong></span> appear when two CPU-heavy requests compete for the GVL.`,
+      body: `🟡 <strong>POST /checkout</strong> is now arriving — auth + DB write.<br><br>
+        50% I/O → 2 threads useful. Higher reward ($18) but more CPU phases means more GVL contention.<br><br>
+        Watch the <span style="color:#b490f5"><strong>purple blocks</strong></span> appear when CPU phases compete.`,
+    },
+    report_requests: {
+      title: 'PDF exports are live!',
+      body: `🔴 <strong>GET /export.pdf</strong> is now in the queue — PDF generation.<br><br>
+        Only 10% I/O — adding threads <strong>does nothing</strong>. High reward ($30) but it hogs the GVL.<br><br>
+        <em>"More threads ≠ more throughput when the GVL is the bottleneck."</em>`,
     },
   },
 

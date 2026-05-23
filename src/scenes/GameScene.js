@@ -38,7 +38,7 @@ export class GameScene {
       },
     );
 
-    this._info.renderShop(this.gs.canAddThread, this.gs.money, this.gs.availableUpgrades(), this.gs.threadCost, this.gs.threadName);
+    this._info.renderShop(this.gs.shopData());
     this._info.setExplanation(NARRATIVE.initial.title, NARRATIVE.initial.body);
     this._applyQueueVisibility();
     this._bindEvents();
@@ -54,7 +54,6 @@ export class GameScene {
       .on(EVENTS.REQUEST_SPAWNED,   ()                 => this._queue.update(this.gs.queue))
       .on(EVENTS.REQUEST_ASSIGNED,  ({ thread, req })  => this._onAssigned(thread, req))
       .on(EVENTS.REQUEST_COMPLETED, ()                 => this._info.addCompleted(this.gs.recentDone))
-      .on(EVENTS.PHASE_CHANGED,     ()                 => this._onPhaseChange())
       .on(EVENTS.UPGRADE_UNLOCKED,  id                 => this._onUpgradeUnlocked(id));
   }
 
@@ -70,7 +69,7 @@ export class GameScene {
     this._threads.update(this.gs.threads, deltaMS);
     this._monitor.update(this.gs);
 
-    this._info.renderShop(this.gs.canAddThread, this.gs.money, this.gs.availableUpgrades(), this.gs.threadCost, this.gs.threadName);
+    this._info.renderShop(this.gs.shopData());
     this._queue.update(this.gs.queue);
     this._info.addCompleted(this.gs.recentDone);
   }
@@ -78,18 +77,12 @@ export class GameScene {
   _onThreadAdded(thread) {
     this._threads.addCard(thread);
     this._monitor.addThread(thread);
-    this._info.renderShop(this.gs.canAddThread, this.gs.money, this.gs.availableUpgrades(), this.gs.threadCost, this.gs.threadName);
+    this._info.renderShop(this.gs.shopData());
   }
 
   _onAssigned(thread, req) {
     this._threads.spawnParticleFor(thread, req, this._queue.getElement(req.id));
     this._queue.removeItem(req.id);
-  }
-
-  _onPhaseChange() {
-    const narr = NARRATIVE.phases[this.gs.phase];
-    this._header.setPhase(narr.badge);
-    this._info.setExplanation(narr.title, narr.body);
   }
 
   _onUpgradeUnlocked(id) {
@@ -100,6 +93,16 @@ export class GameScene {
     if (id === 'request_tracing') {
       this._applyQueueVisibility();
       InfoPanel.flash('Request Tracing unlocked!');
+    }
+    if (id === 'mixed_requests') {
+      const narr = NARRATIVE.upgrades.mixed_requests;
+      this._info.setExplanation(narr.title, narr.body);
+      InfoPanel.flash('Mixed Workload unlocked!');
+    }
+    if (id === 'report_requests') {
+      const narr = NARRATIVE.upgrades.report_requests;
+      this._info.setExplanation(narr.title, narr.body);
+      InfoPanel.flash('PDF Reports unlocked!');
     }
   }
 
@@ -118,10 +121,9 @@ export class GameScene {
       InfoPanel.flash(this.gs.money < 100 ? 'Not enough money!' : 'Not enough RAM!');
       return;
     }
-    this._header.setPhase(n === 0 ? 'Phase 1 — Threads' : `Phase ${this.gs.phase}`);
     const narr = NARRATIVE.threadAdded[Math.min(n + 1, 4)] ?? NARRATIVE.threadAddedFallback(n + 1);
     this._info.setExplanation(narr.title, narr.body);
-    this._info.renderShop(this.gs.canAddThread, this.gs.money, this.gs.availableUpgrades(), this.gs.threadCost, this.gs.threadName);
+    this._info.renderShop(this.gs.shopData());
   }
 
   _buyUpgrade(id) {

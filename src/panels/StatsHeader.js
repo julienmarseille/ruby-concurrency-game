@@ -5,11 +5,11 @@ export class StatsHeader {
     this._gvlStatEl  = this._gvlEl?.closest('.stat');
     this._rpsEl      = document.getElementById('hdr-rps');
     this._rpsStatEl  = this._rpsEl?.closest('.stat');
-    this._badgeEl    = document.getElementById('phase-badge');
   }
 
   update(gs) {
-    this._moneyEl.textContent = '$' + gs.money;
+    this._moneyEl.textContent  = '$' + gs.money;
+    this._moneyEl.style.color  = '#3fb950';
 
     this._gvlStatEl.style.display = gs.hasUpgrade('monitoring') ? '' : 'none';
     if (gs.hasUpgrade('monitoring')) {
@@ -26,7 +26,4 @@ export class StatsHeader {
     }
   }
 
-  setPhase(label) {
-    this._badgeEl.textContent = label;
-  }
 }

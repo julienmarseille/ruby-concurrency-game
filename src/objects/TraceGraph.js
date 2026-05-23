@@ -42,7 +42,7 @@ export class TraceGraph {
 
   _buildTitleAndLegend() {
     this._titleText = new Text({ text: 'THREAD ACTIVITY TIMELINE', style: {
-      fontFamily: 'Courier New', fontSize: 9, fill: CH.textDim,
+      fontFamily: 'Courier New', fontSize: 10, fill: CH.text,
     }});
     this._metaContainer.addChild(this._titleText);
 
@@ -55,7 +55,7 @@ export class TraceGraph {
       this._legendDots.push(dot);
 
       const txt = new Text({ text: item.label, style: {
-        fontFamily: 'Courier New', fontSize: 9, fill: CH.textDim,
+        fontFamily: 'Courier New', fontSize: 10, fill: CH.text,
       }});
       this._metaContainer.addChild(txt);
       this._legendTexts.push(txt);
@@ -69,7 +69,7 @@ export class TraceGraph {
     this._threadOrder.push(thread.id);
 
     const label = new Text({ text: thread.label, style: {
-      fontFamily: 'Courier New', fontSize: 9, fill: CH.textDim,
+      fontFamily: 'Courier New', fontSize: 10, fill: CH.text,
     }});
     this._labelsContainer.addChild(label);
     this._threadLabels[thread.id] = label;
