@@ -1,9 +1,11 @@
-import { ThreadCard }     from '../objects/ThreadCard.js';
-import { ProcessHeader, MIN_GROUP_SPAN } from '../objects/ProcessHeader.js';
-import { PipeSystem }     from '../objects/PipeSystem.js';
+import { ThreadCard }    from '../objects/ThreadCard.js';
+import { ProcessHeader } from '../objects/ProcessHeader.js';
+import { PipeSystem }    from '../objects/PipeSystem.js';
 import { PAD, PIPE_W, PIPE_ENTRY_Y } from '../config.js';
 
-const CARDS_START_Y = PIPE_ENTRY_Y + 30;
+const CARDS_START_Y  = PIPE_ENTRY_Y + 30;
+const CARD_GAP       = 8;
+const GROUP_GAP      = 24;
 
 export class ThreadsSection {
   constructor(threadsApp) {
@@ -92,15 +94,14 @@ export class ThreadsSection {
     const cardPids    = this._cards.map(c => c._thread.processId);
     const processIds  = [...new Set([...headerPids, ...cardPids])];
     const showHeaders = this._headers.length > 0;
-    const BORDER_PAD  = 6;
 
     for (const pid of processIds) {
-      const groupEntry  = showHeaders ? this._headers.find(h => h.processId === pid) : null;
-      const groupStartY = y;
+      const groupEntry = showHeaders ? this._headers.find(h => h.processId === pid) : null;
 
       if (groupEntry) {
-        groupEntry.header.x = PIPE_W - BORDER_PAD;
+        groupEntry.header.x = PIPE_W;
         groupEntry.header.y = y;
+        groupEntry.header.setWidth(cardW);
         y += groupEntry.header.cardHeight;
       }
 
@@ -109,16 +110,10 @@ export class ThreadsSection {
         card.x = PIPE_W;
         card.y = y;
         card.setWidth(cardW);
-        y += card.cardHeight + 8;
+        y += card.cardHeight + CARD_GAP;
       }
 
-      if (groupEntry) {
-        const usedSpan = Math.max(MIN_GROUP_SPAN, y - groupStartY);
-        groupEntry.header.update(cardW + BORDER_PAD * 2, usedSpan);
-        y = groupStartY + usedSpan + 20;
-      } else {
-        y += 8;
-      }
+      y += showHeaders ? GROUP_GAP : CARD_GAP;
     }
 
     this._pipes.setCards(this._cards);
@@ -138,7 +133,7 @@ export class ThreadsSection {
     }, null);
 
     const contentH = lastItem
-      ? lastItem.y + (lastItem.cardHeight ?? 80) + 20
+      ? lastItem.y + (lastItem.cardHeight ?? 96) + 20
       : CARDS_START_Y + 50;
     const H = Math.max(contentH, this._areaEl.clientHeight);
 

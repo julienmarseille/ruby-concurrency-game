@@ -24,7 +24,7 @@ export class MemoryMeter {
     const fc = pct > 0.8 ? C.danger : pct > 0.6 ? C.cpu : C.green;
     this._fill.rect(PAD, y, Math.max(4, mW * pct), 7).fill({ color: fc });
 
-    this._text.text = `MEMORY  ${memUsed} / ${memMax} MB`;
+    this._text.text = `Memory  ${memUsed} / ${memMax} MB`;
     this._text.x = PAD;
     this._text.y = y - 14;
   }

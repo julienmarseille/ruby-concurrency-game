@@ -41,7 +41,7 @@ export class TraceGraph {
   }
 
   _buildTitleAndLegend() {
-    this._titleText = new Text({ text: 'THREAD ACTIVITY TIMELINE', style: {
+    this._titleText = new Text({ text: 'Thread Activity Timeline', style: {
       fontFamily: 'Courier New', fontSize: 10, fill: CH.text,
     }});
     this._metaContainer.addChild(this._titleText);

@@ -24,8 +24,8 @@ export class ThroughputGraph {
     this._metaContainer.zIndex = LAYERS.TRACE_META;
     stage.addChild(this._metaContainer);
 
-    this._titleRecent   = this._makeTitle('THROUGHPUT — LAST 1 MIN');
-    this._titleOverview = this._makeTitle('OVERVIEW — LAST 10 MIN');
+    this._titleRecent   = this._makeTitle('Throughput — last 1 min');
+    this._titleOverview = this._makeTitle('Overview — last 10 min');
 
     this._yLabelsRecent   = this._makeYLabels();
     this._yLabelsOverview = this._makeYLabels();

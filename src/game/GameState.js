@@ -151,7 +151,7 @@ export class GameState {
     const thread = {
       id,
       processId:    pid,
-      label:        `T${id}`,
+      label:        `Thread ${id}`,
       status:       'idle',
       request:      null,
       phaseIdx:     0,

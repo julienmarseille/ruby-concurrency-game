@@ -28,7 +28,12 @@ export class MonitorSection {
   addThread(thread) {
     this._trace.addThread(thread);
     this._refreshHeight();
-    requestAnimationFrame(() => this._layout());
+    requestAnimationFrame(() => {
+      const W = this._wrapEl.clientWidth;
+      const H = this._wrapEl.clientHeight;
+      if (W > 0 && H > 0) this._app.renderer.resize(W, H);
+      this._layout();
+    });
   }
 
   sampleTrace(threads) {

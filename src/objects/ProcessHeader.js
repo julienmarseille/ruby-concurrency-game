@@ -1,9 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { C, LAYERS } from '../config.js';
 
-const BADGE_H        = 20;
-const TOP_OFFSET     = BADGE_H / 2;
-export const MIN_GROUP_SPAN = 80;
+const ROW_H = 36;
 
 export class ProcessHeader extends Container {
   constructor(x, y, width, processId) {
@@ -12,38 +10,34 @@ export class ProcessHeader extends Container {
     this.y      = y;
     this.zIndex = LAYERS.CARDS - 1;
 
-    this._border = new Graphics();
-    this.addChild(this._border);
+    this._line = new Graphics();
+    this.addChild(this._line);
 
-    const badgeBg = new Graphics();
-    badgeBg.roundRect(0, 0, 96, BADGE_H, 4)
-      .fill({ color: C.surface })
-      .stroke({ color: C.border, width: 1 });
-
-    const label = new Text({ text: `Process ${processId}`, style: {
-      fontFamily: 'Courier New', fontSize: 10, fill: '#8b949e',
+    this._label = new Text({ text: `Process ${processId}`, style: {
+      fontFamily: 'Courier New', fontSize: 13, fill: '#e6edf3', fontWeight: 'bold',
     }});
-    label.resolution = 2;
-    label.x = 10;
-    label.y = (BADGE_H - 12) / 2;
+    this._label.x = 0;
+    this._label.y = (ROW_H - 13) / 2;
+    this.addChild(this._label);
 
-    const badge = new Container();
-    badge.addChild(badgeBg, label);
-    badge.x = 14;
-    badge.y = 0;
-    this.addChild(badge);
+    this._draw(width);
   }
 
-  get cardHeight() { return TOP_OFFSET + 18; }
+  get cardHeight() { return ROW_H; }
 
-  update(width, totalSpan) {
-    const h = Math.max(MIN_GROUP_SPAN, totalSpan) - TOP_OFFSET;
-    this._border.clear();
-    this._border
-      .roundRect(0, TOP_OFFSET, width, h, 8)
-      .fill({ color: C.surface, alpha: 0.25 })
-      .stroke({ color: C.border, width: 1 });
+  update(width) {
+    this._draw(width);
   }
 
-  setWidth(w) {}
+  setWidth(w) { this._draw(w); }
+
+  _draw(w) {
+    this._line.clear();
+    const lineY    = ROW_H / 2;
+    const labelEnd = this._label.width + 12;
+    this._line
+      .moveTo(labelEnd, lineY)
+      .lineTo(w, lineY)
+      .stroke({ color: C.border, width: 1, alpha: 0.4 });
+  }
 }
