@@ -1,5 +1,6 @@
-import { ThreadCard } from '../objects/ThreadCard.js';
-import { PipeSystem } from '../objects/PipeSystem.js';
+import { ThreadCard }     from '../objects/ThreadCard.js';
+import { ProcessHeader, MIN_GROUP_SPAN } from '../objects/ProcessHeader.js';
+import { PipeSystem }     from '../objects/PipeSystem.js';
 import { PAD, PIPE_W, PIPE_ENTRY_Y } from '../config.js';
 
 const CARDS_START_Y = PIPE_ENTRY_Y + 30;
@@ -11,6 +12,7 @@ export class ThreadsSection {
     this._areaEl  = document.getElementById('threads-area');
     this._innerEl = document.getElementById('threads-inner');
     this._cards   = [];
+    this._headers = [];
     this._isDragging = false;
 
     this._pipes = new PipeSystem(this._stage, PIPE_W / 2, PIPE_ENTRY_Y);
@@ -22,12 +24,19 @@ export class ThreadsSection {
 
   addCard(thread) {
     const cardW = this._app.screen.width - PIPE_W - PAD;
-    const y     = CARDS_START_Y + this._cards.length * (120 + 8);
-    const card  = new ThreadCard(PIPE_W, y, cardW, thread);
+    const card  = new ThreadCard(PIPE_W, 0, cardW, thread);
     this._stage.addChild(card);
     this._cards.push(card);
     this._resizeAndLayout();
     return card;
+  }
+
+  addProcessHeader(processId) {
+    const w      = this._app.screen.width - PIPE_W - PAD;
+    const header = new ProcessHeader(PIPE_W, 0, w, processId);
+    this._stage.addChild(header);
+    this._headers.push({ processId, header });
+    this._resizeAndLayout();
   }
 
   spawnParticleFor(thread, req, queueItemEl) {
@@ -58,6 +67,10 @@ export class ThreadsSection {
     this._pipes.draw(deltaMS, threads);
   }
 
+  relayout() {
+    this._resizeAndLayout();
+  }
+
   setDragging(isDragging) {
     this._isDragging = isDragging;
     if (!isDragging) this._resizeAndLayout();
@@ -75,11 +88,37 @@ export class ThreadsSection {
 
     this._pipes.setTrunkX(PIPE_W / 2);
 
-    for (const card of this._cards) {
-      card.x = PIPE_W;
-      card.y = y;
-      card.setWidth(cardW);
-      y += card.cardHeight + 8;
+    const headerPids  = this._headers.map(h => h.processId);
+    const cardPids    = this._cards.map(c => c._thread.processId);
+    const processIds  = [...new Set([...headerPids, ...cardPids])];
+    const showHeaders = this._headers.length > 0;
+    const BORDER_PAD  = 6;
+
+    for (const pid of processIds) {
+      const groupEntry  = showHeaders ? this._headers.find(h => h.processId === pid) : null;
+      const groupStartY = y;
+
+      if (groupEntry) {
+        groupEntry.header.x = PIPE_W - BORDER_PAD;
+        groupEntry.header.y = y;
+        y += groupEntry.header.cardHeight;
+      }
+
+      const procCards = this._cards.filter(c => c._thread.processId === pid);
+      for (const card of procCards) {
+        card.x = PIPE_W;
+        card.y = y;
+        card.setWidth(cardW);
+        y += card.cardHeight + 8;
+      }
+
+      if (groupEntry) {
+        const usedSpan = Math.max(MIN_GROUP_SPAN, y - groupStartY);
+        groupEntry.header.update(cardW + BORDER_PAD * 2, usedSpan);
+        y = groupStartY + usedSpan + 20;
+      } else {
+        y += 8;
+      }
     }
 
     this._pipes.setCards(this._cards);
@@ -90,9 +129,16 @@ export class ThreadsSection {
     const W = this._areaEl.clientWidth;
     if (W === 0) return;
 
-    const lastCard  = this._cards[this._cards.length - 1];
-    const contentH  = lastCard
-      ? lastCard.y + lastCard.cardHeight + 20
+    const allItems = [
+      ...this._cards,
+      ...this._headers.map(h => h.header),
+    ];
+    const lastItem = allItems.reduce((last, item) => {
+      return (!last || item.y > last.y) ? item : last;
+    }, null);
+
+    const contentH = lastItem
+      ? lastItem.y + (lastItem.cardHeight ?? 80) + 20
       : CARDS_START_Y + 50;
     const H = Math.max(contentH, this._areaEl.clientHeight);
 

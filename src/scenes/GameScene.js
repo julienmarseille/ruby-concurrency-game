@@ -23,6 +23,7 @@ export class GameScene {
     this._info   = new InfoPanel(
       ()  => this._buyThread(),
       id  => this._buyUpgrade(id),
+      id  => this._buyProcess(id),
     );
 
     this._threads = new ThreadsSection(threadsApp);
@@ -51,6 +52,7 @@ export class GameScene {
   _bindEvents() {
     this._events
       .on(EVENTS.THREAD_ADDED,      t                  => this._onThreadAdded(t))
+      .on(EVENTS.PROCESS_ADDED,     proc               => this._onProcessAdded(proc))
       .on(EVENTS.REQUEST_SPAWNED,   ()                 => this._queue.update(this.gs.queue))
       .on(EVENTS.REQUEST_ASSIGNED,  ({ thread, req })  => this._onAssigned(thread, req))
       .on(EVENTS.REQUEST_COMPLETED, ()                 => this._info.addCompleted(this.gs.recentDone))
@@ -77,6 +79,12 @@ export class GameScene {
   _onThreadAdded(thread) {
     this._threads.addCard(thread);
     this._monitor.addThread(thread);
+    this._info.renderShop(this.gs.shopData());
+  }
+
+  _onProcessAdded(proc) {
+    this._threads.addProcessHeader(proc.id);
+    this._threads.relayout();
     this._info.renderShop(this.gs.shopData());
   }
 
@@ -115,9 +123,8 @@ export class GameScene {
   }
 
   _buyThread() {
-    const n      = this.gs.threads.length;
-    const isFree = n === 0;
-    if (!this.gs.addThread(isFree)) {
+    const n = this.gs.threads.length;
+    if (!this.gs.addThread(false)) {
       InfoPanel.flash(this.gs.money < 100 ? 'Not enough money!' : 'Not enough RAM!');
       return;
     }
@@ -128,5 +135,18 @@ export class GameScene {
 
   _buyUpgrade(id) {
     if (!this.gs.buyUpgrade(id)) InfoPanel.flash('Not enough money!');
+  }
+
+  _buyProcess(id) {
+    if (id === 'process_1') {
+      this.gs.addFirstProcess();
+      this._info.setExplanation(NARRATIVE.processCreated.title, NARRATIVE.processCreated.body);
+      return;
+    }
+    if (!this.gs.addProcess()) {
+      InfoPanel.flash(this.gs.money < 150 ? 'Not enough money!' : 'Not enough RAM!');
+      return;
+    }
+    this._info.setExplanation(NARRATIVE.processAdded.title, NARRATIVE.processAdded.body);
   }
 }

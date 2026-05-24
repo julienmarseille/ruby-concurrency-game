@@ -1,29 +1,40 @@
 const NODE_W      = 34;
-const MAX_THREADS = 8;
-const STEP        = 44;
+const MAX_THREADS = 12;
+const STEP        = 48;
+const COL_OBS     = 0;
+const COL_THRUPUT = 58;
+const COL_CENTER  = 130;
+const COL_THREAD  = 220;
+const PROC_X      = 294;
 
 const TREE_NODES = [
-  { id: 'thread_1',         x: 113, y: 8,              tooltipAlign: 'center' },
-  { id: 'request_tracing',  x: 8,   y: 8 + STEP,       tooltipAlign: 'left'   },
-  { id: 'mixed_requests',   x: 113, y: 8 + STEP,       tooltipAlign: 'center' },
+  { id: 'process_1',        x: COL_CENTER, y: 8,               tooltipAlign: 'center' },
+  { id: 'thread_1',         x: COL_CENTER, y: 8 + STEP,        tooltipAlign: 'center' },
+  { id: 'request_tracing',  x: COL_OBS,    y: 8 + STEP * 2,   tooltipAlign: 'left'   },
+  { id: 'mixed_requests',   x: COL_CENTER, y: 8 + STEP * 2,    tooltipAlign: 'center' },
   ...Array.from({ length: MAX_THREADS - 1 }, (_, i) => ({
     id:           `thread_${i + 2}`,
-    x:            218,
-    y:            8 + (i + 1) * STEP,
-    tooltipAlign: 'right',
+    x:            COL_THREAD,
+    y:            8 + (i + 2) * STEP,
+    tooltipAlign: 'left',
   })),
-  { id: 'monitoring',       x: 8,   y: 8 + STEP * 2,   tooltipAlign: 'left'   },
-  { id: 'throughput_graph', x: 52,  y: 8 + STEP * 2,   tooltipAlign: 'left'   },
-  { id: 'report_requests',  x: 113, y: 8 + STEP * 2,   tooltipAlign: 'center' },
+  { id: 'monitoring',       x: COL_OBS,    y: 8 + STEP * 3,   tooltipAlign: 'left'   },
+  { id: 'throughput_graph', x: COL_THRUPUT,y: 8 + STEP * 3,   tooltipAlign: 'left'   },
+  { id: 'report_requests',  x: COL_CENTER, y: 8 + STEP * 3,    tooltipAlign: 'center' },
+  { id: 'process_2',        x: PROC_X,     y: 8 + STEP * 2,    tooltipAlign: 'right'  },
+  { id: 'process_3',        x: PROC_X,     y: 8 + STEP * 3,    tooltipAlign: 'right'  },
 ];
 
 const TREE_EDGES = [
+  ['process_1',       'thread_1'],
   ['thread_1',        'request_tracing'],
   ['thread_1',        'mixed_requests'],
   ['thread_1',        'thread_2'],
   ['request_tracing', 'monitoring'],
   ['request_tracing', 'throughput_graph'],
   ['mixed_requests',  'report_requests'],
+  ['thread_1',        'process_2'],
+  ['process_2',       'process_3'],
   ...Array.from({ length: MAX_THREADS - 2 }, (_, i) => [`thread_${i + 2}`, `thread_${i + 3}`]),
 ];
 
@@ -39,13 +50,14 @@ function edgePath(from, to) {
   return `M ${x1} ${y1} C ${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`;
 }
 
-const TREE_W = 218 + NODE_W + 4;
-const TREE_H = 8 + MAX_THREADS * STEP;
+const TREE_W = PROC_X + NODE_W + 4;
+const TREE_H = 8 + (MAX_THREADS + 1) * STEP + NODE_W + 4;
 
 export class InfoPanel {
-  constructor(onBuyThread, onBuyUpgrade) {
+  constructor(onBuyThread, onBuyUpgrade, onBuyProcess) {
     this._onBuyThread   = onBuyThread;
     this._onBuyUpgrade  = onBuyUpgrade;
+    this._onBuyProcess  = onBuyProcess;
     this._completedEl   = document.getElementById('completed-list');
     this._shopEl        = document.getElementById('shop');
     this._explanationEl = document.getElementById('explanation-box');
@@ -57,6 +69,7 @@ export class InfoPanel {
       if (!node) return;
       if (node.dataset.action === 'upgrade') this._onBuyUpgrade(node.dataset.id);
       if (node.dataset.action === 'thread')  this._onBuyThread();
+      if (node.dataset.action === 'process') this._onBuyProcess(node.dataset.id);
     });
   }
 
@@ -103,7 +116,7 @@ export class InfoPanel {
         stateCls = 'tree-node--affordable';
       }
 
-      const action  = item.isThread ? 'thread' : 'upgrade';
+      const action  = item.isThread ? 'thread' : item.isProcess ? 'process' : 'upgrade';
       const cost    = item.isFree || item.cost === 0 ? 'Free' : `$${item.cost}`;
       const tooltip = `
         <div class="tree-tooltip tree-tooltip--${nodePos.tooltipAlign}">

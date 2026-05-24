@@ -15,7 +15,7 @@ export const UPGRADES = {
     category: 'observability',
     desc:     'GVL wait %, memory usage and thread activity timeline.',
     cost:     40,
-    requires: null,
+    requires: 'request_tracing',
   },
   throughput_graph: {
     id:       'throughput_graph',

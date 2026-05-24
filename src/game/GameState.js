@@ -1,21 +1,22 @@
-import { TICK_MS, MEM_BASE, MEM_MAX, THREAD_MEM, REQ_TYPES, EVENTS } from '../config.js';
+import { TICK_MS, MEM_BASE, MEM_MAX, THREAD_MEM, PROCESS_MEM, REQ_TYPES, EVENTS } from '../config.js';
 import { UPGRADES } from '../UpgradeConfig.js';
 import { MetricsComputer } from './MetricsComputer.js';
 
 export class GameState {
   constructor(events) {
-    this._events    = events;
-    this.money      = 1000;
-    this.completed  = 0;
-    this.tick       = 0;
-    this.threads    = [];
-    this.queue      = [];
-    this.recentDone = [];
-    this.gvlHolder  = null;
-    this._reqId     = 0;
-    this._threadId  = 0;
-    this.upgrades   = new Set();
-    this._metrics   = new MetricsComputer();
+    this._events     = events;
+    this.money       = 1000;
+    this.completed   = 0;
+    this.tick        = 0;
+    this.threads     = [];
+    this.queue       = [];
+    this.recentDone  = [];
+    this.processes   = [];
+    this._reqId      = 0;
+    this._threadId   = 0;
+    this._processId  = 0;
+    this.upgrades    = new Set();
+    this._metrics    = new MetricsComputer();
   }
 
   hasUpgrade(id) { return this.upgrades.has(id); }
@@ -32,6 +33,43 @@ export class GameState {
     return true;
   }
 
+  addFirstProcess() {
+    if (this.processes.length > 0) return false;
+    const proc = { id: ++this._processId, gvlHolder: null };
+    this.processes.push(proc);
+    this._events.emit(EVENTS.PROCESS_ADDED, proc);
+    return true;
+  }
+
+  addProcess() {
+    if (this.processes.length >= 3) return false;
+    const cost = 150;
+    if (this.money < cost) return false;
+    if (this.memUsed + PROCESS_MEM > MEM_MAX) return false;
+    this.money -= cost;
+    const proc = { id: ++this._processId, gvlHolder: null };
+    this.processes.push(proc);
+    this._redistributeThreads();
+    this._events.emit(EVENTS.PROCESS_ADDED, proc);
+    return true;
+  }
+
+  _redistributeThreads() {
+    const n     = this.processes.length;
+    const total = this.threads.length;
+    const base  = Math.floor(total / n);
+    const extra = total % n;
+    let idx = 0;
+    for (let pi = 0; pi < n; pi++) {
+      const count = base + (pi < extra ? 1 : 0);
+      const pid   = this.processes[pi].id;
+      for (let j = 0; j < count; j++) {
+        if (idx < total) this.threads[idx++].processId = pid;
+      }
+    }
+    for (const proc of this.processes) proc.gvlHolder = null;
+  }
+
   _injectRequests(type, count) {
     for (let i = 0; i < count; i++) {
       const req = { id: ++this._reqId, type, def: REQ_TYPES[type] };
@@ -45,47 +83,75 @@ export class GameState {
   }
 
   shopData() {
-    const MAX_THREADS = 8;
-    const threadNodes = Array.from({ length: MAX_THREADS }, (_, i) => {
+    const MAX_THREADS  = 12;
+    const hasProcess1  = this.processes.length >= 1;
+    const threadNodes  = Array.from({ length: MAX_THREADS }, (_, i) => {
       const n     = i + 1;
       const owned = this.threads.length >= n;
-      const ramOk = MEM_BASE + n * THREAD_MEM <= MEM_MAX;
-      const cost  = n === 1 ? 0 : 100;
+      const ramOk = this.memUsed + THREAD_MEM <= MEM_MAX;
+      const cost  = 100;
       return {
         id:         `thread_${n}`,
-        name:       n === 1 ? 'Start Server' : `Thread ${n}`,
-        icon:       n === 1 ? '🚀' : '🧵',
+        name:       `Thread ${n}`,
+        icon:       '🧵',
         desc:       `OS thread · shares the GVL · uses ${THREAD_MEM}MB RAM`,
         cost,
         isThread:   true,
-        isFree:     cost === 0,
+        isFree:     false,
         owned,
-        unlocked:   (n === 1 || this.threads.length >= n - 1) && ramOk,
-        affordable: owned || cost === 0 || this.money >= cost,
+        unlocked:   hasProcess1 && (this.threads.length >= n - 1) && (owned || ramOk),
+        affordable: owned || this.money >= cost,
+        moneyPct:   Math.min(1, this.money / cost),
+      };
+    });
+    const hasThread1 = this.threads.length >= 1;
+    const upgrades = Object.values(UPGRADES).map(u => {
+      const requiresMet = !u.requires || this.upgrades.has(u.requires);
+      const parentMet   = (u.id === 'request_tracing' || u.id === 'mixed_requests') ? hasThread1 : true;
+      return {
+        ...u,
+        isThread:   false,
+        owned:      this.upgrades.has(u.id),
+        unlocked:   requiresMet && parentMet,
+        affordable: this.money >= u.cost,
+        moneyPct:   Math.min(1, this.money / u.cost),
+      };
+    });
+    const processNodes = [1, 2, 3].map(n => {
+      const owned  = this.processes.length >= n;
+      const isFree = n === 1;
+      const cost   = isFree ? 0 : 150;
+      const ramOk  = n === 1 ? true : this.memUsed + PROCESS_MEM <= MEM_MAX;
+      return {
+        id:         `process_${n}`,
+        name:       n === 1 ? 'Start Server' : `Process ${n}`,
+        icon:       '⚙️',
+        desc:       n === 1
+          ? 'Create your Ruby process — the server entry point.'
+          : `Fork a new process — own GVL, no CPU contention. +${PROCESS_MEM}MB RAM.`,
+        cost,
+        isProcess:  true,
+        isFree:     isFree,
+        owned,
+        unlocked:   n === 1 ? true : (this.threads.length >= 1 && this.processes.length >= n - 1 && (owned || ramOk)),
+        affordable: owned || isFree || this.money >= cost,
         moneyPct:   cost > 0 ? Math.min(1, this.money / cost) : 1,
       };
     });
-    const upgrades = Object.values(UPGRADES).map(u => ({
-      ...u,
-      isThread:   false,
-      owned:      this.upgrades.has(u.id),
-      unlocked:   !u.requires || this.upgrades.has(u.requires),
-      affordable: this.money >= u.cost,
-      moneyPct:   Math.min(1, this.money / u.cost),
-    }));
-    return [...threadNodes, ...upgrades];
+    return [...processNodes, ...threadNodes, ...upgrades];
   }
 
-  addThread(free = false) {
-    const nextMem = MEM_BASE + (this.threads.length + 1) * THREAD_MEM;
-    if (nextMem > MEM_MAX) return false;
+  addThread(free = false, processId = null) {
+    if (this.memUsed + THREAD_MEM > MEM_MAX) return false;
     if (!free && this.money < 100) return false;
     if (!free) this.money -= 100;
 
-    const id = ++this._threadId;
+    const pid = processId ?? this._leastLoadedProcessId();
+    const id  = ++this._threadId;
     const thread = {
       id,
-      label:        `Thread ${id}`,
+      processId:    pid,
+      label:        `T${id}`,
       status:       'idle',
       request:      null,
       phaseIdx:     0,
@@ -97,6 +163,16 @@ export class GameState {
     this.threads.push(thread);
     this._events.emit(EVENTS.THREAD_ADDED, thread);
     return true;
+  }
+
+  _leastLoadedProcessId() {
+    if (this.processes.length === 0) return 1;
+    let minCount = Infinity, minId = this.processes[0].id;
+    for (const proc of this.processes) {
+      const count = this.threads.filter(t => t.processId === proc.id).length;
+      if (count < minCount) { minCount = count; minId = proc.id; }
+    }
+    return minId;
   }
 
   spawnRequest() {
@@ -143,10 +219,11 @@ export class GameState {
       if (t.pendingUntil && now < t.pendingUntil) { active++; continue; }
       active++;
       const phase = t.request.def.phases[t.phaseIdx];
+      const proc  = this.processes.find(p => p.id === t.processId);
 
       if (phase.type === 'cpu') {
-        if (this.gvlHolder === null || this.gvlHolder === t.id) {
-          this.gvlHolder = t.id;
+        if (proc.gvlHolder === null || proc.gvlHolder === t.id) {
+          proc.gvlHolder = t.id;
           if (t.status !== 'cpu') t.phaseRunWall = null;
           t.status       = 'cpu';
           t.phaseElapsed += TICK_MS;
@@ -157,7 +234,7 @@ export class GameState {
           waiting++;
         }
       } else {
-        if (this.gvlHolder === t.id) { this.gvlHolder = null; this._grantGVL(); }
+        if (proc.gvlHolder === t.id) { proc.gvlHolder = null; this._grantGVL(proc); }
         t.status       = 'io';
         t.phaseElapsed += TICK_MS;
         t.phaseRunWall  = now;
@@ -171,7 +248,9 @@ export class GameState {
       }
     }
 
-    if (this.gvlHolder === null) this._grantGVL();
+    for (const proc of this.processes) {
+      if (proc.gvlHolder === null) this._grantGVL(proc);
+    }
 
     this._metrics.sample(waiting, active);
   }
@@ -182,24 +261,26 @@ export class GameState {
   get totalActiveTicks() { return this._metrics.hasData; }
   get threadCost()       { return this.threads.length === 0 ? 0 : 100; }
   get threadName()       { return this.threads.length === 0 ? '🚀 Start your server' : '➕ Add Thread'; }
-  get memUsed()          { return MEM_BASE + this.threads.length * THREAD_MEM; }
+  get memUsed()          { return MEM_BASE + Math.max(0, this.processes.length - 1) * PROCESS_MEM + this.threads.length * THREAD_MEM; }
   get memPct()           { return this.memUsed / MEM_MAX; }
-  get canAddThread()     { return MEM_BASE + (this.threads.length + 1) * THREAD_MEM <= MEM_MAX; }
+  get canAddThread()     { return this.memUsed + THREAD_MEM <= MEM_MAX; }
+  get gvlHolder()        { return this.processes[0]?.gvlHolder ?? null; }
   get gvlHolderThread()  { return this.threads.find(t => t.id === this.gvlHolder) ?? null; }
 
-  _grantGVL() {
-    const w = this.threads.find(t => t.status === 'gvl_wait');
-    if (w) { this.gvlHolder = w.id; w.status = 'cpu'; w.phaseRunWall = performance.now(); }
+  _grantGVL(proc) {
+    const w = this.threads.find(t => t.processId === proc.id && t.status === 'gvl_wait');
+    if (w) { proc.gvlHolder = w.id; w.status = 'cpu'; w.phaseRunWall = performance.now(); }
   }
 
   _complete(t) {
-    const req = t.request;
+    const req  = t.request;
+    const proc = this.processes.find(p => p.id === t.processId);
     this.money += req.def.reward;
     this.completed++;
     this._metrics.recordCompletion();
     this.recentDone.unshift({ emoji: req.def.emoji, sub: req.def.sub, reward: req.def.reward, id: req.id });
     if (this.recentDone.length > 14) this.recentDone.pop();
-    if (this.gvlHolder === t.id) this.gvlHolder = null;
+    if (proc && proc.gvlHolder === t.id) proc.gvlHolder = null;
     t.request = null; t.status = 'idle'; t.phaseIdx = 0; t.phaseElapsed = 0; t.phaseRunWall = null;
     this._events.emit(EVENTS.REQUEST_COMPLETED, req);
   }

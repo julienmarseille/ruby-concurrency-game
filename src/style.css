@@ -14,7 +14,7 @@
   --color-cpu:      #fc8181;
 
   --panel-queue-w:  210px;
-  --panel-info-w:   300px;
+  --panel-info-w:   370px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

@@ -1,8 +1,14 @@
 export const NARRATIVE = {
   initial: {
-    title: 'No threads yet',
-    body: `Requests are piling up — but nothing processes them.<br><br>
-      Buy your first thread to start. It's free.`,
+    title: 'Start your server',
+    body: `Requests are queuing up — but nothing processes them yet.<br><br>
+      Click <strong>⚙️ Start Server</strong> to create your Ruby process, then add a thread to start handling requests.`,
+  },
+
+  processCreated: {
+    title: 'Process created!',
+    body: `Your Ruby process is running — but it has no threads yet.<br><br>
+      Add <strong>Thread 1</strong> to start picking requests from the queue.`,
   },
 
   upgrades: {
@@ -20,11 +26,19 @@ export const NARRATIVE = {
     },
   },
 
+  processAdded: {
+    title: 'New process forked!',
+    body: `Watch the new process pick up requests independently.<br><br>
+      Two CPU-heavy requests can now run <strong>simultaneously</strong> — one per process.<br><br>
+      <em>The GVL is per-process in Ruby — this is how Unicorn/Puma multi-process works.</em>`,
+  },
+
   threadAdded: {
     1: {
-      title: 'Your first thread!',
-      body: `The thread picks requests from the queue and processes them one at a time.<br><br>
-          Each <strong>GET /users</strong> spends 75% of its time waiting on the DB — the GVL is released during that time.`,
+      title: 'Server is live!',
+      body: `Thread 1 picks requests one at a time.<br><br>
+          Each <strong>GET /users</strong> spends 75% of its time waiting on the DB — the GVL is released during I/O.<br><br>
+          Add more threads to handle requests in parallel.`,
     },
     2: {
       title: 'Two threads!',

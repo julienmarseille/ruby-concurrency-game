@@ -1,15 +1,16 @@
 // ─── Simulation ──────────────────────────────────────────────────────────────
-export const TICK_MS    = 50;
-export const MEM_BASE   = 200;
-export const MEM_MAX    = 512;
-export const THREAD_MEM = 50;
+export const TICK_MS      = 50;
+export const MEM_BASE     = 200;
+export const MEM_MAX      = 1024;
+export const THREAD_MEM   = 50;
+export const PROCESS_MEM  = 100;
 
 // ─── Layout (shared by JS modules) ───────────────────────────────────────────
 export const PAD             = 14;
 export const PIPE_W          = 48;
 export const PIPE_ENTRY_Y    = 20;
 export const MEM_Y           = 20;
-export const MEM_DISPLAY_MAX = MEM_BASE + THREAD_MEM * 6;
+export const MEM_DISPLAY_MAX = MEM_MAX;
 
 // ─── Graph dimensions (shared by TraceGraph + ThroughputGraph) ───────────────
 export const TRACE_TICKS           = 300;
@@ -66,6 +67,7 @@ export const CH = {
 // ─── Events ───────────────────────────────────────────────────────────────────
 export const EVENTS = {
   THREAD_ADDED:      'threadAdded',
+  PROCESS_ADDED:     'processAdded',
   REQUEST_SPAWNED:   'requestSpawned',
   REQUEST_ASSIGNED:  'requestAssigned',
   REQUEST_COMPLETED: 'requestCompleted',
