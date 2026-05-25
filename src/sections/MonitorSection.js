@@ -1,7 +1,13 @@
 import { TraceGraph }      from '../objects/TraceGraph.js';
 import { ThroughputGraph } from '../objects/ThroughputGraph.js';
 import { MemoryMeter }     from '../objects/MemoryMeter.js';
-import { MEM_Y, MEM_DISPLAY_MAX } from '../config.js';
+import { MEM_Y, MEM_DISPLAY_MAX, SPACING } from '../config.js';
+
+const MONITOR_MIN_H     = 150;
+const TRACE_PADDING_TOP = SPACING.xl;
+const GRAPH_GAP         = SPACING.lg;
+const SECTION_GAP       = SPACING.xl;
+const BOTTOM_PAD        = SPACING.xl + SPACING.sm;
 
 export class MonitorSection {
   constructor(monitorApp) {
@@ -78,10 +84,10 @@ export class MonitorSection {
 
   _refreshHeight() {
     let h = 0;
-    if (this._hasMonitoring)  h += 24 + Math.max(80, this._trace.totalHeight + 4);
-    if (this._hasThroughput)  h += 16 + this._throughputGraph.totalHeight;
-    if (h > 0) h += 40;
-    this._wrapEl.style.height = Math.max(150, h) + 'px';
+    if (this._hasMonitoring)  h += TRACE_PADDING_TOP + Math.max(80, this._trace.totalHeight + 4);
+    if (this._hasThroughput)  h += GRAPH_GAP + this._throughputGraph.totalHeight;
+    if (h > 0) h += BOTTOM_PAD;
+    this._wrapEl.style.height = Math.max(MONITOR_MIN_H, h) + 'px';
   }
 
   _layout() {
@@ -89,18 +95,18 @@ export class MonitorSection {
     let y = MEM_Y;
 
     if (this._hasMonitoring) {
-      y += 24;
+      y += TRACE_PADDING_TOP;
     }
 
     if (this._hasThroughput) {
-      y += 16;
+      y += GRAPH_GAP;
       this._throughputGraph.setY(y);
       this._throughputGraph.setWidth(MW);
       y += this._throughputGraph.totalHeight;
     }
 
     if (this._hasMonitoring) {
-      y += 20;
+      y += SECTION_GAP;
       this._trace.setY(y);
       this._trace.setWidth(MW);
     }

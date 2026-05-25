@@ -1,18 +1,17 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { C, LAYERS, TICK_MS } from '../config.js';
+import { C, LAYERS, SPACING, TEXT_STYLES, TICK_MS } from '../config.js';
 
-const CARD_H  = 52;
-const PAD     = 12;
-const NAME_W  = 80;
-const BAR_H   = 18;
-const BAR_Y   = (CARD_H - BAR_H) / 2;
+const CARD_H = 52;
+const CARD_PAD = SPACING.md;
+const NAME_W = 80;
+const BAR_H  = 18;
+const BAR_Y  = (CARD_H - BAR_H) / 2;
 
 const STATUS_COLORS = {
-  idle:     { border: C.border,  badge: 0x1c2128, label: 'idle'     },
-  incoming: { border: C.green,   badge: 0x0a2a0d, label: 'incoming' },
-  cpu:      { border: C.cpu,     badge: 0x2a1d00, label: 'CPU'      },
-  io:       { border: C.io,      badge: 0x071929, label: 'I/O'      },
-  gvl_wait: { border: C.gvlWait, badge: 0x160b2e, label: 'GVL wait' },
+  idle:     { border: C.border,  badge: 0x21262d, text: '#8b949e', label: 'idle'     },
+  cpu:      { border: C.cpu,     badge: 0x3a2800, text: '#d29922', label: 'CPU'      },
+  io:       { border: C.io,      badge: 0x0a2540, text: '#4299e1', label: 'I/O'      },
+  gvl_wait: { border: C.gvlWait, badge: 0x1e1040, text: '#8957e5', label: 'GVL wait' },
 };
 
 const PHASE_COLORS = { cpu: C.cpu, io: C.io };
@@ -23,22 +22,20 @@ export class ThreadCard extends Container {
     this.x       = x;
     this.y       = y;
     this.zIndex  = LAYERS.CARDS;
-    this._thread = thread;
-    this._w      = width;
+    this._thread            = thread;
+    this._w                 = width;
     this._particleArrivalAt = 0;
 
     this._bg = new Graphics();
     this.addChild(this._bg);
 
-    this._nameText = new Text({ text: thread.label, style: {
-      fontFamily: 'Courier New', fontSize: 11, fill: '#8b949e',
-    }});
-    this._nameText.x = PAD;
+    this._nameText = new Text({ text: thread.label, style: TEXT_STYLES.threadName });
+    this._nameText.x = CARD_PAD;
     this._nameText.y = (CARD_H - 11) / 2;
     this.addChild(this._nameText);
 
     this._badgeBg   = new Graphics();
-    this._badgeText = new Text({ text: '', style: { fontFamily: 'Courier New', fontSize: 10, fill: '#8b949e' }});
+    this._badgeText = new Text({ text: '', style: { ...TEXT_STYLES.bodyDim } });
     this.addChild(this._badgeBg);
     this.addChild(this._badgeText);
 
@@ -73,13 +70,13 @@ export class ThreadCard extends Container {
     const def = req?.def;
 
     const isIncoming    = req && this._particleArrivalAt > 0 && now < this._particleArrivalAt;
-    const displayStatus = isIncoming ? 'incoming' : t.status;
+    const displayStatus = (isIncoming || t.status === 'incoming') ? 'idle' : t.status;
 
     if (this._particleArrivalAt > 0 && now >= this._particleArrivalAt) {
       this._particleArrivalAt = 0;
     }
 
-    const sc         = STATUS_COLORS[displayStatus] ?? STATUS_COLORS.idle;
+    const sc = STATUS_COLORS[displayStatus] ?? STATUS_COLORS.idle;
     const W          = this._w;
     const prevStatus = this._lastStatus;
 
@@ -90,17 +87,18 @@ export class ThreadCard extends Container {
       this._lastW      = W;
 
       this._bg.clear();
-      this._bg.roundRect(0, 0, W, CARD_H, 8)
+      this._bg.roundRect(0, 0, W, CARD_H, SPACING.sm)
         .fill({ color: C.card })
         .stroke({ color: sc.border, width: 1 });
 
-      const badgeW = sc.label.length * 6.2 + 16;
-      const badgeX = W - PAD - badgeW;
+      const badgeW = sc.label.length * 6.2 + SPACING.lg;
+      const badgeX = W - CARD_PAD - badgeW;
       this._badgeBg.clear();
-      this._badgeBg.roundRect(badgeX, (CARD_H - 18) / 2, badgeW, 18, 4).fill({ color: sc.badge });
-      this._badgeText.text = sc.label;
-      this._badgeText.x = badgeX + 8;
-      this._badgeText.y = (CARD_H - 10) / 2;
+      this._badgeBg.roundRect(badgeX, (CARD_H - 18) / 2, badgeW, 18, SPACING.xs).fill({ color: sc.badge });
+      this._badgeText.text       = sc.label;
+      this._badgeText.style.fill = sc.text;
+      this._badgeText.x          = badgeX + SPACING.sm;
+      this._badgeText.y          = (CARD_H - 10) / 2;
     }
 
     const isGvlWait = displayStatus === 'gvl_wait';
@@ -109,9 +107,9 @@ export class ThreadCard extends Container {
       this._gvlOverlay.clear();
       this._gvlMask.clear();
       if (isGvlWait) {
-        this._gvlMask.roundRect(0, 0, W, CARD_H, 8).fill(0xffffff);
-        const step = 16;
-        const sw   = 8;
+        this._gvlMask.roundRect(0, 0, W, CARD_H, SPACING.sm).fill(0xffffff);
+        const step = SPACING.lg;
+        const sw   = SPACING.sm;
         for (let x = -sw; x < W + CARD_H + sw; x += step) {
           this._gvlOverlay.moveTo(x, -sw).lineTo(x - CARD_H - sw, CARD_H + sw)
             .stroke({ width: sw, color: C.gvlWait, alpha: 0.45 });
@@ -123,7 +121,7 @@ export class ThreadCard extends Container {
     this._progFill.clear();
 
     if (!isIncoming && def) {
-      const badgeW = sc.label.length * 6.2 + 16;
+      const badgeW = sc.label.length * 6.2 + SPACING.lg;
       this._drawLifecycleBar(t, def, now, W, badgeW);
     }
   }
@@ -135,8 +133,8 @@ export class ThreadCard extends Container {
   }
 
   _drawLifecycleBar(t, def, now, W, badgeW) {
-    const barX   = PAD + NAME_W;
-    const barEnd = W - PAD - badgeW - 8;
+    const barX   = CARD_PAD + NAME_W;
+    const barEnd = W - CARD_PAD - badgeW - SPACING.sm;
     const progW  = barEnd - barX;
     if (progW <= 0) return;
 
@@ -156,7 +154,7 @@ export class ThreadCard extends Container {
       this._progBg.rect(barX + segX, BAR_Y, 1, BAR_H).fill({ color: C.bg });
     }
 
-    this._progBg.roundRect(barX, BAR_Y, progW, BAR_H, 3)
+    this._progBg.roundRect(barX, BAR_Y, progW, BAR_H, SPACING.xs)
       .stroke({ color: C.border, width: 1 });
 
     let totalElapsed = 0;
@@ -176,9 +174,7 @@ export class ThreadCard extends Container {
       const fillW     = Math.min(segW, (remaining / p.ms) * segW);
       const isCurrent = remaining < p.ms;
       const fillColor = (t.status === 'gvl_wait' && isCurrent) ? C.gvlWait : PHASE_COLORS[p.type];
-
       this._progFill.rect(barX + segX, BAR_Y + 2, fillW, BAR_H - 4).fill({ color: fillColor });
-
       remaining -= p.ms;
       segX += segW;
     }

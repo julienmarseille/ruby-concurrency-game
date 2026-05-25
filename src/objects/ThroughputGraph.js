@@ -1,10 +1,10 @@
 import { Graphics, Text, Container } from 'pixi.js';
-import { C, CH, LAYERS, PAD, TRACE_TICKS, OVERVIEW_TICKS, GRAPH_LABEL_W, THROUGHPUT_H } from '../config.js';
+import { C, LAYERS, PAD, TEXT_STYLES, TRACE_TICKS, OVERVIEW_TICKS, GRAPH_LABEL_W, THROUGHPUT_H, SPACING } from '../config.js';
 
-const LABEL_W  = GRAPH_LABEL_W;
-const GRAPH_H  = THROUGHPUT_H;
-const Y_TICKS  = 4;
-const GAP      = 8;
+const LABEL_W = GRAPH_LABEL_W;
+const GRAPH_H = THROUGHPUT_H;
+const Y_TICKS = 4;
+const GAP     = SPACING.sm;
 
 export class ThroughputGraph {
   constructor(stage, x, y, width) {
@@ -34,7 +34,7 @@ export class ThroughputGraph {
   }
 
   _makeTitle(text) {
-    const t = new Text({ text, style: { fontFamily: 'Courier New', fontSize: 10, fill: CH.text }});
+    const t = new Text({ text, style: TEXT_STYLES.body });
     this._metaContainer.addChild(t);
     return t;
   }
@@ -42,7 +42,7 @@ export class ThroughputGraph {
   _makeYLabels() {
     const labels = [];
     for (let i = 0; i <= Y_TICKS; i++) {
-      const t = new Text({ text: '', style: { fontFamily: 'Courier New', fontSize: 9, fill: CH.text }});
+      const t = new Text({ text: '', style: TEXT_STYLES.label });
       t.anchor.x = 1;
       this._metaContainer.addChild(t);
       labels.push(t);
@@ -97,10 +97,7 @@ export class ThroughputGraph {
     if (data.length > 1) {
       const pts = [x0 + LABEL_W, y0 + GRAPH_H + 2];
       for (let i = 0; i < data.length; i++) {
-        pts.push(
-          x0 + LABEL_W + i * tickW,
-          y0 + GRAPH_H - (data[i] / yMax) * GRAPH_H + 2,
-        );
+        pts.push(x0 + LABEL_W + i * tickW, y0 + GRAPH_H - (data[i] / yMax) * GRAPH_H + 2);
       }
       pts.push(x0 + LABEL_W + (data.length - 1) * tickW, y0 + GRAPH_H + 2);
       gfx.poly(pts).fill({ color: C.green, alpha: 0.15 });

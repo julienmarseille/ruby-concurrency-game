@@ -1,11 +1,11 @@
 import { ThreadCard }    from '../objects/ThreadCard.js';
 import { ProcessHeader } from '../objects/ProcessHeader.js';
 import { PipeSystem }    from '../objects/PipeSystem.js';
-import { PAD, PIPE_W, PIPE_ENTRY_Y } from '../config.js';
+import { PAD, PIPE_W, PIPE_ENTRY_Y, PIPE_TRAVEL_MS, SPACING } from '../config.js';
 
-const CARDS_START_Y  = PIPE_ENTRY_Y + 30;
-const CARD_GAP       = 8;
-const GROUP_GAP      = 24;
+const CARDS_START_Y = PIPE_ENTRY_Y + SPACING.xl + SPACING.sm;
+const CARD_GAP      = SPACING.sm;
+const GROUP_GAP     = SPACING.xl;
 
 export class ThreadsSection {
   constructor(threadsApp) {
@@ -43,30 +43,25 @@ export class ThreadsSection {
 
   spawnParticleFor(thread, req, queueItemEl) {
     const card = this._cards.find(c => c.threadId === thread.id);
-    if (!card) return;
+    if (!card || !queueItemEl) return;
 
-    let fromPos = null;
-    if (queueItemEl) {
-      const r          = queueItemEl.getBoundingClientRect();
-      const canvasRect = this._app.canvas.getBoundingClientRect();
-      fromPos = {
-        x: r.right  - canvasRect.left,
-        y: r.top + r.height / 2 - canvasRect.top,
-      };
-    }
+    const r          = queueItemEl.getBoundingClientRect();
+    const canvasRect = this._app.canvas.getBoundingClientRect();
+    const fromPos    = {
+      x: r.right  - canvasRect.left,
+      y: r.top + r.height / 2 - canvasRect.top,
+    };
 
-    if (fromPos) {
-      const arrivalAt = performance.now() + 300;
-      thread.pendingUntil = arrivalAt;
-      card.setIncoming(arrivalAt);
-      this._pipes.spawnParticle(fromPos, card, req.type);
-    }
+    const arrivalAt = performance.now() + PIPE_TRAVEL_MS;
+    thread.pendingUntil = arrivalAt;
+    card.setIncoming(arrivalAt);
+    this._pipes.spawnParticle(fromPos, card, req.type);
   }
 
   update(threads, deltaMS) {
     const now = performance.now();
     for (const card of this._cards) card.update(now);
-    this._pipes.draw(deltaMS, threads);
+    this._pipes.draw(deltaMS);
   }
 
   relayout() {
@@ -117,7 +112,7 @@ export class ThreadsSection {
     }
 
     this._pipes.setCards(this._cards);
-    this._pipes.draw(0, []);
+    this._pipes.draw(0);
   }
 
   _resizeCanvas() {

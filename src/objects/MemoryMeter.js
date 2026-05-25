@@ -1,11 +1,11 @@
 import { Graphics, Text } from 'pixi.js';
-import { C, CH, LAYERS, PAD } from '../config.js';
+import { C, CH, LAYERS, PAD, TEXT_STYLES } from '../config.js';
 
 export class MemoryMeter {
   constructor(stage) {
     this._bg   = new Graphics();
     this._fill = new Graphics();
-    this._text = new Text({ text: '', style: { fontFamily: 'Courier New', fontSize: 10, fill: CH.text }});
+    this._text = new Text({ text: '', style: TEXT_STYLES.body });
     this._bg.zIndex   = LAYERS.MEMORY_METER;
     this._fill.zIndex = LAYERS.MEMORY_METER;
     this._text.zIndex = LAYERS.MEMORY_TEXT;

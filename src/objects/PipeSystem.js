@@ -1,5 +1,5 @@
 import { Graphics, Container } from 'pixi.js';
-import { C, LAYERS, PIPE_ENTRY_Y } from '../config.js';
+import { C, LAYERS, PIPE_ENTRY_Y, PIPE_TRAVEL_MS } from '../config.js';
 
 export class PipeSystem {
   constructor(stage, trunkX, entryY = PIPE_ENTRY_Y) {
@@ -17,17 +17,17 @@ export class PipeSystem {
     stage.addChild(this._dotLayer);
   }
 
-  setCards(cards)  { this._cards = cards; this._pipeDirty = true; }
-  setTrunkX(x)     { this._trunkX = x;   this._pipeDirty = true; }
+  setCards(cards) { this._cards = cards; this._pipeDirty = true; }
+  setTrunkX(x)    { this._trunkX = x;   this._pipeDirty = true; }
 
   spawnParticle(fromPos, toCard, reqType) {
     const color = reqType === 'DB_REQUEST' ? 0x4299e1 : reqType === 'MIXED' ? 0xe8a838 : 0xfc8181;
     const dot   = new Graphics();
     this._dotLayer.addChild(dot);
-    this._particles.push({ fromPos, toCard, color, dot, elapsed: 0, duration: 300 });
+    this._particles.push({ fromPos, toCard, color, dot, elapsed: 0, duration: PIPE_TRAVEL_MS });
   }
 
-  draw(deltaMS, threads) {
+  draw(deltaMS) {
     this._particles = this._particles.filter(p => {
       p.elapsed += deltaMS;
       const rawT  = Math.min(1, p.elapsed / p.duration);
@@ -35,9 +35,9 @@ export class PipeSystem {
       const pos   = this._pathPoint(p, eased);
 
       p.dot.clear();
-      p.dot.circle(pos.x, pos.y, 5).fill({ color: p.color, alpha: 0.2 });
-      p.dot.circle(pos.x, pos.y, 3).fill({ color: p.color });
-      p.dot.circle(pos.x, pos.y, 1.2).fill({ color: 0xffffff });
+      p.dot.circle(pos.x, pos.y, 7.5).fill({ color: p.color, alpha: 0.2 });
+      p.dot.circle(pos.x, pos.y, 4.5).fill({ color: p.color });
+      p.dot.circle(pos.x, pos.y, 1.8).fill({ color: 0xffffff });
 
       if (rawT >= 1) { p.dot.destroy(); return false; }
       return true;
@@ -46,41 +46,6 @@ export class PipeSystem {
     if (this._pipeDirty) {
       this._drawStaticPipes();
       this._pipeDirty = false;
-    }
-  }
-
-  _drawStaticPipes() {
-    const gfx    = this._pipeGfx;
-    const trunkX = this._trunkX;
-    const entryY = this._entryY;
-    gfx.clear();
-
-    const hasCards = this._cards.length > 0;
-    const bottomY  = hasCards
-      ? this._cards[this._cards.length - 1].y + this._cards[this._cards.length - 1].cardHeight / 2
-      : entryY + 20;
-
-    gfx.moveTo(0, entryY).lineTo(trunkX, entryY)
-      .stroke({ width: 2, color: C.pipe });
-
-    gfx.moveTo(trunkX - 8, entryY - 5)
-      .lineTo(trunkX, entryY)
-      .lineTo(trunkX - 8, entryY + 5)
-      .stroke({ width: 2, color: C.pipe });
-
-    gfx.moveTo(trunkX, entryY).lineTo(trunkX, bottomY)
-      .stroke({ width: 2, color: C.pipe });
-
-    for (const card of this._cards) {
-      const branchY = card.y + card.cardHeight / 2;
-
-      gfx.moveTo(trunkX, branchY).lineTo(card.x, branchY)
-        .stroke({ width: 2, color: C.pipe });
-
-      gfx.moveTo(card.x - 8, branchY - 5)
-        .lineTo(card.x, branchY)
-        .lineTo(card.x - 8, branchY + 5)
-        .stroke({ width: 2, color: C.pipe });
     }
   }
 
@@ -117,6 +82,29 @@ export class PipeSystem {
     } else {
       const f = d34 > 0 ? (d - d01 - d12 - d23) / d34 : 1;
       return { x: trunkX + (toX - trunkX) * f, y: branchY };
+    }
+  }
+
+  _drawStaticPipes() {
+    const gfx    = this._pipeGfx;
+    const trunkX = this._trunkX;
+    const entryY = this._entryY;
+    gfx.clear();
+
+    const hasCards = this._cards.length > 0;
+    const bottomY  = hasCards
+      ? Math.max(...this._cards.map(c => c.y + c.cardHeight / 2))
+      : entryY + 20;
+
+    gfx.moveTo(0, entryY).lineTo(trunkX, entryY)
+      .stroke({ width: 2, color: C.pipe });
+    gfx.moveTo(trunkX, entryY).lineTo(trunkX, bottomY)
+      .stroke({ width: 2, color: C.pipe });
+
+    for (const card of this._cards) {
+      const branchY = card.y + card.cardHeight / 2;
+      gfx.moveTo(trunkX, branchY).lineTo(card.x, branchY)
+        .stroke({ width: 2, color: C.pipe });
     }
   }
 }

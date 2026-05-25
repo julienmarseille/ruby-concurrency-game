@@ -73,7 +73,7 @@ export class InfoPanel {
     });
   }
 
-  setExplanation(title, body) {
+  setExplanation({ title, body }) {
     this._explanationEl.innerHTML = `<h3>${title}</h3>${body}`;
   }
 

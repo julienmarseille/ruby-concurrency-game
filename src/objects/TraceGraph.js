@@ -1,7 +1,7 @@
 import { Graphics, Text, Container } from 'pixi.js';
-import { C, CH, LAYERS, PAD, TRACE_TICKS, TRACE_SAMPLE_EVERY, GRAPH_LABEL_W, TRACE_ROW_H } from '../config.js';
+import { C, LAYERS, PAD, TEXT_STYLES, TRACE_TICKS, TRACE_SAMPLE_EVERY, GRAPH_LABEL_W, TRACE_ROW_H } from '../config.js';
 
-const COLORS = { cpu: C.cpu, io: C.io, gvl_wait: C.gvlWait, idle: C.idle };
+const COLORS  = { cpu: C.cpu, io: C.io, gvl_wait: C.gvlWait, idle: C.idle };
 const LABEL_W = GRAPH_LABEL_W;
 const ROW_H   = TRACE_ROW_H;
 
@@ -21,8 +21,7 @@ export class TraceGraph {
     this._buffers     = {};
     this._tickCount   = 0;
     this._threadOrder = [];
-
-    this._visible      = true;
+    this._visible     = true;
     this._threadLabels = {};
 
     this._gfx = new Graphics();
@@ -41,9 +40,7 @@ export class TraceGraph {
   }
 
   _buildTitleAndLegend() {
-    this._titleText = new Text({ text: 'Thread Activity Timeline', style: {
-      fontFamily: 'Courier New', fontSize: 10, fill: CH.text,
-    }});
+    this._titleText = new Text({ text: 'Thread Activity Timeline', style: TEXT_STYLES.body });
     this._metaContainer.addChild(this._titleText);
 
     this._legendDots  = [];
@@ -54,9 +51,7 @@ export class TraceGraph {
       this._metaContainer.addChild(dot);
       this._legendDots.push(dot);
 
-      const txt = new Text({ text: item.label, style: {
-        fontFamily: 'Courier New', fontSize: 10, fill: CH.text,
-      }});
+      const txt = new Text({ text: item.label, style: TEXT_STYLES.body });
       this._metaContainer.addChild(txt);
       this._legendTexts.push(txt);
     }
@@ -68,9 +63,7 @@ export class TraceGraph {
     this._buffers[thread.id] = [];
     this._threadOrder.push(thread.id);
 
-    const label = new Text({ text: thread.label, style: {
-      fontFamily: 'Courier New', fontSize: 10, fill: CH.text,
-    }});
+    const label = new Text({ text: thread.label, style: TEXT_STYLES.body });
     this._labelsContainer.addChild(label);
     this._threadLabels[thread.id] = label;
 
@@ -141,10 +134,10 @@ export class TraceGraph {
   }
 
   setVisible(v) {
-    this._visible                    = v;
-    this._gfx.visible                = v;
-    this._metaContainer.visible      = v;
-    this._labelsContainer.visible    = v;
+    this._visible                 = v;
+    this._gfx.visible             = v;
+    this._metaContainer.visible   = v;
+    this._labelsContainer.visible = v;
   }
 
   destroy() {

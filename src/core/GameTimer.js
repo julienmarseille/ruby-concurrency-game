@@ -1,4 +1,4 @@
-import { TICK_MS } from '../config.js';
+import { TICK_MS, SPAWN_MS, STATS_MS } from '../config.js';
 
 export class GameTimer {
   constructor() {
@@ -17,7 +17,7 @@ export class GameTimer {
       onTick();
     }
 
-    if (this._spawnAccum >= 5000) { this._spawnAccum -= 5000; onSpawn(); }
-    if (this._statsAccum >= 1000) { this._statsAccum -= 1000; onStatsRefresh(); }
+    if (this._spawnAccum >= SPAWN_MS) { this._spawnAccum -= SPAWN_MS; onSpawn(); }
+    if (this._statsAccum >= STATS_MS) { this._statsAccum -= STATS_MS; onStatsRefresh(); }
   }
 }
