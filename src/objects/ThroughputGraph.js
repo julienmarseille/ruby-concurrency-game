@@ -1,66 +1,24 @@
-import { Graphics, Text, Container } from 'pixi.js';
-import { C, LAYERS, PAD, TEXT_STYLES, TRACE_TICKS, OVERVIEW_TICKS, GRAPH_LABEL_W, THROUGHPUT_H, SPACING } from '../config.js';
+import { C, PAD, TRACE_TICKS, OVERVIEW_TICKS, GRAPH_LABEL_W, THROUGHPUT_H, SPACING } from '../config.js';
+import { DualPanelGraph } from './DualPanelGraph.js';
 
 const LABEL_W = GRAPH_LABEL_W;
 const GRAPH_H = THROUGHPUT_H;
 const Y_TICKS = 4;
 const GAP     = SPACING.sm;
 
-export class ThroughputGraph {
-  constructor(stage, x, y, width) {
-    this._stage   = stage;
-    this._x       = x;
-    this._y       = y;
-    this._width   = width;
-    this._visible = true;
+export class ThroughputGraph extends DualPanelGraph {
+  constructor(x, y, width) {
+    super(x, y, width);
     this._yMaxRecent   = 0.5;
     this._yMaxOverview = 0.5;
 
-    this._gfx = new Graphics();
-    this._gfx.zIndex = LAYERS.TRACE;
-    stage.addChild(this._gfx);
+    this._titleRecent   = this._createLabel('Throughput — last 1 min');
+    this._titleOverview = this._createLabel('Overview — last 10 min');
 
-    this._metaContainer = new Container();
-    this._metaContainer.zIndex = LAYERS.TRACE_META;
-    stage.addChild(this._metaContainer);
-
-    this._titleRecent   = this._makeTitle('Throughput — last 1 min');
-    this._titleOverview = this._makeTitle('Overview — last 10 min');
-
-    this._yLabelsRecent   = this._makeYLabels();
-    this._yLabelsOverview = this._makeYLabels();
+    this._yLabelsRecent   = this._createYLabels(Y_TICKS);
+    this._yLabelsOverview = this._createYLabels(Y_TICKS);
 
     this._positionMeta();
-  }
-
-  _makeTitle(text) {
-    const t = new Text({ text, style: TEXT_STYLES.body });
-    this._metaContainer.addChild(t);
-    return t;
-  }
-
-  _makeYLabels() {
-    const labels = [];
-    for (let i = 0; i <= Y_TICKS; i++) {
-      const t = new Text({ text: '', style: TEXT_STYLES.label });
-      t.anchor.x = 1;
-      this._metaContainer.addChild(t);
-      labels.push(t);
-    }
-    return labels;
-  }
-
-  setY(y)     { this._y = y; this._positionMeta(); }
-  setWidth(w) { this._width = w; this._positionMeta(); }
-
-  _panelWidth() { return Math.floor((this._width - PAD - GAP) / 2); }
-
-  _positionMeta() {
-    const pW = this._panelWidth();
-    this._titleRecent.x   = PAD;
-    this._titleRecent.y   = this._y - 14;
-    this._titleOverview.x = pW + GAP + PAD;
-    this._titleOverview.y = this._y - 14;
   }
 
   draw(recentData, overviewData) {
@@ -71,7 +29,7 @@ export class ThroughputGraph {
     const pW  = this._panelWidth();
     gfx.clear();
 
-    this._drawPanel(gfx, 0,        pW, recentData,   this._yMaxRecent,   TRACE_TICKS,   this._yLabelsRecent);
+    this._drawPanel(gfx, 0,        pW, recentData,   this._yMaxRecent,   TRACE_TICKS,    this._yLabelsRecent);
     this._drawPanel(gfx, pW + GAP, pW, overviewData, this._yMaxOverview, OVERVIEW_TICKS, this._yLabelsOverview);
   }
 
@@ -117,17 +75,6 @@ export class ThroughputGraph {
 
     gfx.moveTo(x0 + LABEL_W, y0).lineTo(x0 + LABEL_W, y0 + GRAPH_H + 4)
       .stroke({ color: C.border, width: 1 });
-  }
-
-  setVisible(v) {
-    this._visible               = v;
-    this._gfx.visible           = v;
-    this._metaContainer.visible = v;
-  }
-
-  destroy() {
-    this._gfx.destroy();
-    this._metaContainer.destroy({ children: true });
   }
 
   get totalHeight() { return GRAPH_H + 24; }

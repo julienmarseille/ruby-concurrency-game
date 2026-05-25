@@ -1,5 +1,6 @@
-import { Graphics, Text, Container } from 'pixi.js';
-import { C, LAYERS, PAD, TEXT_STYLES, TRACE_TICKS, OVERVIEW_TICKS, GRAPH_LABEL_W, PROCESS_GRAPH_H, SPACING } from '../config.js';
+import { Text } from 'pixi.js';
+import { C, PAD, TEXT_STYLES, TRACE_TICKS, OVERVIEW_TICKS, GRAPH_LABEL_W, PROCESS_GRAPH_H, SPACING } from '../config.js';
+import { DualPanelGraph } from './DualPanelGraph.js';
 
 const LABEL_W = GRAPH_LABEL_W;
 const GRAPH_H = PROCESS_GRAPH_H;
@@ -11,26 +12,15 @@ const SERIES = [
   { key: 'gvl', color: C.gvlWait, label: 'GVL wait' },
 ];
 
-export class ProcessGraph {
-  constructor(stage, x, y, width) {
-    this._stage  = stage;
-    this._x      = x;
-    this._y      = y;
-    this._width  = width;
+export class ProcessGraph extends DualPanelGraph {
+  constructor(x, y, width) {
+    super(x, y, width);
 
-    this._gfx = new Graphics();
-    this._gfx.zIndex = LAYERS.TRACE;
-    stage.addChild(this._gfx);
+    this._titleRecent   = this._createLabel('Server Activity — last 1 min');
+    this._titleOverview = this._createLabel('Server Activity — last 10 min');
 
-    this._meta = new Container();
-    this._meta.zIndex = LAYERS.TRACE_META;
-    stage.addChild(this._meta);
-
-    this._titleRecent   = this._makeText('Server Activity — last 1 min');
-    this._titleOverview = this._makeText('Server Activity — last 10 min');
-
-    this._yLabelsRecent   = this._makeYLabels();
-    this._yLabelsOverview = this._makeYLabels();
+    this._yLabelsRecent   = this._createYLabels(Y_TICKS);
+    this._yLabelsOverview = this._createYLabels(Y_TICKS);
 
     this._legend = SERIES.map(s => {
       const t = new Text({ text: s.label, style: { ...TEXT_STYLES.label, fill: s.color } });
@@ -41,36 +31,9 @@ export class ProcessGraph {
     this._positionMeta();
   }
 
-  _makeText(text) {
-    const t = new Text({ text, style: TEXT_STYLES.body });
-    this._meta.addChild(t);
-    return t;
-  }
-
-  _makeYLabels() {
-    const labels = [];
-    for (let i = 0; i <= Y_TICKS; i++) {
-      const t = new Text({ text: '', style: TEXT_STYLES.label });
-      t.anchor.x = 1;
-      this._meta.addChild(t);
-      labels.push(t);
-    }
-    return labels;
-  }
-
-  setY(y)     { this._y = y; this._positionMeta(); }
-  setWidth(w) { this._width = w; this._positionMeta(); }
-
-  _panelWidth() { return Math.floor((this._width - PAD - GAP) / 2); }
-
   _positionMeta() {
-    const pW = this._panelWidth();
-    this._titleRecent.x   = PAD;
-    this._titleRecent.y   = this._y - 14;
-    this._titleOverview.x = pW + GAP + PAD;
-    this._titleOverview.y = this._y - 14;
-
-    this._legend.forEach((t, i) => {
+    this._positionTitles();
+    this._legend?.forEach((t, i) => {
       t.x = PAD + LABEL_W + 4 + i * 56;
       t.y = this._y + GRAPH_H + 6;
     });
@@ -80,7 +43,7 @@ export class ProcessGraph {
     const gfx = this._gfx;
     const pW  = this._panelWidth();
     gfx.clear();
-    this._drawPanel(gfx, 0,        pW, recentData,   TRACE_TICKS,   this._yLabelsRecent);
+    this._drawPanel(gfx, 0,        pW, recentData,   TRACE_TICKS,    this._yLabelsRecent);
     this._drawPanel(gfx, pW + GAP, pW, overviewData, OVERVIEW_TICKS, this._yLabelsOverview);
   }
 
@@ -122,14 +85,4 @@ export class ProcessGraph {
   }
 
   get totalHeight() { return GRAPH_H + 30; }
-
-  setVisible(v) {
-    this._gfx.visible  = v;
-    this._meta.visible = v;
-  }
-
-  destroy() {
-    this._gfx.destroy();
-    this._meta.destroy({ children: true });
-  }
 }

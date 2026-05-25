@@ -13,8 +13,7 @@ const LEGEND_ITEMS = [
 ];
 
 export class TraceGraph {
-  constructor(stage, x, y, width) {
-    this._stage       = stage;
+  constructor(x, y, width) {
     this._x           = x;
     this._y           = y;
     this._width       = width;
@@ -26,17 +25,20 @@ export class TraceGraph {
 
     this._gfx = new Graphics();
     this._gfx.zIndex = LAYERS.TRACE;
-    stage.addChild(this._gfx);
 
     this._metaContainer = new Container();
     this._metaContainer.zIndex = LAYERS.TRACE_META;
-    stage.addChild(this._metaContainer);
 
     this._labelsContainer = new Container();
     this._labelsContainer.zIndex = LAYERS.TRACE_LABELS;
-    stage.addChild(this._labelsContainer);
 
     this._buildTitleAndLegend();
+  }
+
+  addTo(parent) {
+    parent.addChild(this._gfx);
+    parent.addChild(this._metaContainer);
+    parent.addChild(this._labelsContainer);
   }
 
   _buildTitleAndLegend() {

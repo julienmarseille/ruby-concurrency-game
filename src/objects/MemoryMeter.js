@@ -1,17 +1,20 @@
 import { Graphics, Text } from 'pixi.js';
-import { C, CH, LAYERS, PAD, TEXT_STYLES } from '../config.js';
+import { C, LAYERS, PAD, TEXT_STYLES } from '../config.js';
 
 export class MemoryMeter {
-  constructor(stage) {
+  constructor() {
     this._bg   = new Graphics();
     this._fill = new Graphics();
     this._text = new Text({ text: '', style: TEXT_STYLES.body });
     this._bg.zIndex   = LAYERS.MEMORY_METER;
     this._fill.zIndex = LAYERS.MEMORY_METER;
     this._text.zIndex = LAYERS.MEMORY_TEXT;
-    stage.addChild(this._bg);
-    stage.addChild(this._fill);
-    stage.addChild(this._text);
+  }
+
+  addTo(parent) {
+    parent.addChild(this._bg);
+    parent.addChild(this._fill);
+    parent.addChild(this._text);
   }
 
   draw(y, width, pct, memUsed, memMax) {

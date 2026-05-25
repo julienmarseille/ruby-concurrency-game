@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { C, LAYERS, SPACING, TEXT_STYLES } from '../config.js';
+import { C, CH, LAYERS, SPACING, TEXT_STYLES } from '../config.js';
 
 const ROW_H     = 36;
 const BADGE_H   = 18;
@@ -58,9 +58,9 @@ export class ProcessHeader extends Container {
 
     if (state) {
       const { label, color, textColor } = {
-        io:       { label: 'I/O',      color: C.io,      textColor: '#4299e1' },
-        cpu:      { label: 'CPU',      color: C.cpu,     textColor: '#d29922' },
-        gvl_wait: { label: 'GVL wait', color: C.gvlWait, textColor: '#8957e5' },
+        io:       { label: 'I/O',      color: C.io,      textColor: CH.io           },
+        cpu:      { label: 'CPU',      color: C.cpu,     textColor: CH.cpu          },
+        gvl_wait: { label: 'GVL wait', color: C.gvlWait, textColor: CH.gvlWaitLight },
       }[state];
 
       const badgeW = label.length * 6 + BADGE_PAD * 2;

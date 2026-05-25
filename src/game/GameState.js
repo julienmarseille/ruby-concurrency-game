@@ -1,13 +1,10 @@
-import { TICK_MS, MEM_BASE, MEM_MAX, THREAD_MEM, PROCESS_MEM, EVENTS } from '../config.js';
+import { TICK_MS, MEM_BASE, MEM_MAX, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, EVENTS } from '../config.js';
 import { UPGRADES }                from '../UpgradeConfig.js';
 import { MetricsComputer }         from './MetricsComputer.js';
 import { ProcessMetricsComputer }  from './ProcessMetricsComputer.js';
 import { GVLScheduler }            from './GVLScheduler.js';
 import { RequestFactory }          from './RequestFactory.js';
 import { SpawnStrategy }           from './SpawnStrategy.js';
-
-const THREAD_COST  = 100;
-const PROCESS_COST = 150;
 
 export class GameState {
   _nextProcessId = 0;
@@ -109,7 +106,25 @@ export class GameState {
   step() {
     this.tick++;
     const now = performance.now();
+    this._assignRequests(now);
+    const { waiting, active } = this._advancePhases(now);
+    this._gvl.postStep(this.processes, this.threads, now);
+    this._metrics.sample(waiting, active);
+    this._processMetrics.sampleAll(this.processes, this.threads);
+  }
 
+  get throughputWindow() { return this._metrics.throughputWindow; }
+  get overviewWindow()   { return this._metrics.overviewWindow; }
+  get gvlWaitPct()       { return this._metrics.gvlWaitPct; }
+  get totalActiveTicks() { return this._metrics.hasData; }
+  get threadCost()       { return this.threads.length === 0 ? 0 : THREAD_COST; }
+  get threadName()       { return this.threads.length === 0 ? '🚀 Start your server' : '➕ Add Thread'; }
+  get memUsed()          { return MEM_BASE + Math.max(0, this.processes.length - 1) * PROCESS_MEM + this.threads.length * THREAD_MEM; }
+  get memPct()           { return this.memUsed / MEM_MAX; }
+  get canAddThread()     { return this.memUsed + THREAD_MEM <= MEM_MAX; }
+  get processMetrics()   { return this._processMetrics; }
+
+  _assignRequests(now) {
     for (const t of this.threads) {
       if (t.status === 'idle' && this.queue.length > 0) {
         const req      = this.queue.shift();
@@ -122,7 +137,9 @@ export class GameState {
         this._events.emit(EVENTS.REQUEST_ASSIGNED, { thread: t, req });
       }
     }
+  }
 
+  _advancePhases(now) {
     let waiting = 0, active = 0;
 
     for (const t of this.threads) {
@@ -147,31 +164,7 @@ export class GameState {
       }
     }
 
-    this._gvl.postStep(this.processes, this.threads, now);
-    this._metrics.sample(waiting, active);
-    this._processMetrics.sampleAll(this.processes, this.threads);
-  }
-
-  get throughputWindow() { return this._metrics.throughputWindow; }
-  get overviewWindow()   { return this._metrics.overviewWindow; }
-  get gvlWaitPct()       { return this._metrics.gvlWaitPct; }
-  get totalActiveTicks() { return this._metrics.hasData; }
-  get threadCost()       { return this.threads.length === 0 ? 0 : THREAD_COST; }
-  get threadName()       { return this.threads.length === 0 ? '🚀 Start your server' : '➕ Add Thread'; }
-  get memUsed()          { return MEM_BASE + Math.max(0, this.processes.length - 1) * PROCESS_MEM + this.threads.length * THREAD_MEM; }
-  get memPct()           { return this.memUsed / MEM_MAX; }
-  get canAddThread()     { return this.memUsed + THREAD_MEM <= MEM_MAX; }
-
-  get processMetrics() { return this._processMetrics; }
-
-  get perProcessStats() {
-    return this.processes.map(proc => {
-      const procThreads = this.threads.filter(t => t.processId === proc.id);
-      const activeThreads = procThreads.filter(t => t.request !== null);
-      const waitingThreads = activeThreads.filter(t => t.status === 'gvl_wait');
-      const gvlWaitPct = activeThreads.length > 0 ? Math.round(waitingThreads.length / activeThreads.length * 100) : 0;
-      return { processId: proc.id, gvlWaitPct };
-    });
+    return { waiting, active };
   }
 
   _redistributeThreads() {

@@ -1,7 +1,8 @@
-import { EVENTS } from '../config.js';
-import { GameEvents } from '../core/GameEvents.js';
-import { GameTimer }  from '../core/GameTimer.js';
-import { GameState }  from '../game/GameState.js';
+import { EVENTS, PROCESS_COST, THREAD_COST } from '../config.js';
+import { UPGRADES }             from '../UpgradeConfig.js';
+import { GameEvents }           from '../core/GameEvents.js';
+import { GameTimer }            from '../core/GameTimer.js';
+import { GameState }            from '../game/GameState.js';
 import { ShopViewModel }        from '../game/ShopViewModel.js';
 import { NarrativeProvider }    from '../providers/NarrativeProvider.js';
 import { ThreadsSection }       from '../sections/ThreadsSection.js';
@@ -54,13 +55,13 @@ export class GameScene {
 
   _bindEvents() {
     this._events
-      .on(EVENTS.THREAD_ADDED,         t                 => this._onThreadAdded(t))
-      .on(EVENTS.PROCESS_ADDED,        proc              => this._onProcessAdded(proc))
-      .on(EVENTS.REQUEST_SPAWNED,      req               => this._queue.update(this.gs.queue))
-      .on(EVENTS.REQUEST_ASSIGNED,     ({ thread, req }) => this._onAssigned(thread, req))
-      .on(EVENTS.REQUEST_COMPLETED,    ()                => this._info.addCompleted(this.gs.recentDone))
-      .on(EVENTS.UPGRADE_UNLOCKED,     id               => this._onUpgradeUnlocked(id))
-      .on(EVENTS.THREADS_REDISTRIBUTED, n               => InfoPanel.flash(`Threads redistributed across ${n} processes`));
+      .on(EVENTS.THREAD_ADDED,          t                 => this._onThreadAdded(t))
+      .on(EVENTS.PROCESS_ADDED,         proc              => this._onProcessAdded(proc))
+      .on(EVENTS.REQUEST_SPAWNED,       ()                => this._queue.update(this.gs.queue))
+      .on(EVENTS.REQUEST_ASSIGNED,      ({ thread, req }) => this._onAssigned(thread, req))
+      .on(EVENTS.REQUEST_COMPLETED,     ()                => this._info.addCompleted(this.gs.recentDone))
+      .on(EVENTS.UPGRADE_UNLOCKED,      id                => this._onUpgradeUnlocked(id))
+      .on(EVENTS.THREADS_REDISTRIBUTED, n                 => InfoPanel.flash(`Threads redistributed across ${n} processes`));
   }
 
   _update() {
@@ -96,25 +97,15 @@ export class GameScene {
   }
 
   _onUpgradeUnlocked(id) {
-    if (id === 'monitoring' || id === 'throughput_graph') {
-      this._monitor.unlock(id);
-      InfoPanel.flash(id === 'monitoring' ? 'Monitoring unlocked!' : 'Throughput Graph unlocked!');
-    }
-    if (id === 'request_tracing') {
-      this._applyQueueVisibility();
-      InfoPanel.flash('Request Tracing unlocked!');
-    }
-    if (id === 'process_monitor') {
-      this._monitor.unlock('process_monitor');
-      this._threads.enableProcessMonitor();
-      InfoPanel.flash('Process Monitor unlocked!');
+    const { effects } = UPGRADES[id] ?? {};
+    if (effects) {
+      if (effects.flash)                InfoPanel.flash(effects.flash);
+      if (effects.monitorUnlock)        this._monitor.unlock(id);
+      if (effects.showQueue)            this._applyQueueVisibility();
+      if (effects.enableProcessMonitor) this._threads.enableProcessMonitor();
     }
     const narr = this._narrative.forUpgrade(id);
-    if (narr) {
-      this._info.setExplanation(narr);
-      if (id === 'mixed_requests')  InfoPanel.flash('Mixed Workload unlocked!');
-      if (id === 'report_requests') InfoPanel.flash('PDF Reports unlocked!');
-    }
+    if (narr) this._info.setExplanation(narr);
     this._refreshShop();
   }
 
@@ -129,7 +120,7 @@ export class GameScene {
   _buyThread() {
     const n = this.gs.threads.length;
     if (!this.gs.addThread(false)) {
-      InfoPanel.flash(this.gs.money < 100 ? 'Not enough money!' : 'Not enough RAM!');
+      InfoPanel.flash(this.gs.money < THREAD_COST ? 'Not enough money!' : 'Not enough RAM!');
       return;
     }
     this._info.setExplanation(this._narrative.forThreadCount(n + 1));
@@ -147,7 +138,7 @@ export class GameScene {
       return;
     }
     if (!this.gs.addProcess()) {
-      InfoPanel.flash(this.gs.money < 150 ? 'Not enough money!' : 'Not enough RAM!');
+      InfoPanel.flash(this.gs.money < PROCESS_COST ? 'Not enough money!' : 'Not enough RAM!');
       return;
     }
     this._info.setExplanation(this._narrative.processAdded());

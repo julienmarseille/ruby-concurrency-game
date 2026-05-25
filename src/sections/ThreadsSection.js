@@ -17,7 +17,8 @@ export class ThreadsSection {
     this._headers = [];
     this._isDragging = false;
 
-    this._pipes = new PipeSystem(this._stage, PIPE_W / 2, PIPE_ENTRY_Y);
+    this._pipes = new PipeSystem(PIPE_W / 2, PIPE_ENTRY_Y);
+    this._pipes.addTo(this._stage);
     this._processMonitorEnabled = false;
 
     this._resizeCanvas();
@@ -91,9 +92,9 @@ export class ThreadsSection {
 
     this._pipes.setTrunkX(PIPE_W / 2);
 
-    const headerPids  = this._headers.map(h => h.processId);
-    const cardPids    = this._cards.map(c => c._thread.processId);
-    const processIds  = [...new Set([...headerPids, ...cardPids])];
+    const headerPids = this._headers.map(h => h.processId);
+    const cardPids   = this._cards.map(c => c.processId);
+    const processIds = [...new Set([...headerPids, ...cardPids])];
     const showHeaders = this._headers.length > 0;
 
     for (const pid of processIds) {
@@ -106,7 +107,7 @@ export class ThreadsSection {
         y += groupEntry.header.cardHeight;
       }
 
-      const procCards = this._cards.filter(c => c._thread.processId === pid);
+      const procCards = this._cards.filter(c => c.processId === pid);
       for (const card of procCards) {
         card.x = PIPE_W;
         card.y = y;

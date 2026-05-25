@@ -2,9 +2,8 @@ import { TraceGraph }      from '../objects/TraceGraph.js';
 import { ThroughputGraph } from '../objects/ThroughputGraph.js';
 import { MemoryMeter }     from '../objects/MemoryMeter.js';
 import { ProcessGraph }    from '../objects/ProcessGraph.js';
-import { MEM_Y, MEM_DISPLAY_MAX, SPACING } from '../config.js';
+import { MEM_Y, MEM_DISPLAY_MAX, SPACING, MONITOR_MIN_H } from '../config.js';
 
-const MONITOR_MIN_H     = 150;
 const TRACE_PADDING_TOP = SPACING.xl;
 const GRAPH_GAP         = SPACING.lg;
 const SECTION_GAP       = SPACING.xl;
@@ -23,9 +22,13 @@ export class MonitorSection {
     this._hasProcessMonitor = false;
     this._processGraph      = null;
 
-    this._trace           = new TraceGraph(this._stage, 0, 0, 0);
-    this._throughputGraph = new ThroughputGraph(this._stage, 0, 0, 0);
-    this._memMeter        = new MemoryMeter(this._stage);
+    this._trace           = new TraceGraph(0, 0, 0);
+    this._throughputGraph = new ThroughputGraph(0, 0, 0);
+    this._memMeter        = new MemoryMeter();
+
+    this._trace.addTo(this._stage);
+    this._throughputGraph.addTo(this._stage);
+    this._memMeter.addTo(this._stage);
 
     this._trace.setVisible(false);
     this._memMeter.setVisible(false);
@@ -74,7 +77,8 @@ export class MonitorSection {
     }
     if (upgradeId === 'process_monitor') {
       this._hasProcessMonitor = true;
-      this._processGraph = new ProcessGraph(this._stage, 0, 0, this._app.screen.width);
+      this._processGraph = new ProcessGraph(0, 0, this._app.screen.width);
+      this._processGraph.addTo(this._stage);
     }
     this._areaEl.style.display = '';
     this._refreshHeight();

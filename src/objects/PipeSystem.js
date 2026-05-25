@@ -2,8 +2,7 @@ import { Graphics, Container } from 'pixi.js';
 import { C, LAYERS, PIPE_ENTRY_Y, PIPE_TRAVEL_MS } from '../config.js';
 
 export class PipeSystem {
-  constructor(stage, trunkX, entryY = PIPE_ENTRY_Y) {
-    this._stage     = stage;
+  constructor(trunkX, entryY = PIPE_ENTRY_Y) {
     this._trunkX    = trunkX;
     this._entryY    = entryY;
     this._cards     = [];
@@ -13,8 +12,11 @@ export class PipeSystem {
     this._pipeGfx  = new Graphics();
     this._dotLayer = new Container();
     this._dotLayer.zIndex = LAYERS.PARTICLES;
-    stage.addChild(this._pipeGfx);
-    stage.addChild(this._dotLayer);
+  }
+
+  addTo(parent) {
+    parent.addChild(this._pipeGfx);
+    parent.addChild(this._dotLayer);
   }
 
   setCards(cards) { this._cards = cards; this._pipeDirty = true; }

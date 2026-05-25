@@ -1,9 +1,7 @@
 import { UPGRADES } from '../UpgradeConfig.js';
-import { MEM_MAX, THREAD_MEM, PROCESS_MEM } from '../config.js';
+import { MEM_MAX, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST } from '../config.js';
 
-const MAX_THREADS   = 12;
-const THREAD_COST   = 100;
-const PROCESS_COST  = 150;
+const MAX_THREADS = 12;
 
 export class ShopViewModel {
   compute(gs) {

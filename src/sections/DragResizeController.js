@@ -1,9 +1,11 @@
+import { MONITOR_MIN_H } from '../config.js';
+
 export class DragResizeController {
   constructor(handleEl, wrapEl, { onStart, onEnd, onResize }) {
     let startY, startH;
 
     const onMouseMove = e => {
-      const newH = Math.max(40, startH + (startY - e.clientY));
+      const newH = Math.max(MONITOR_MIN_H, startH + (startY - e.clientY));
       onResize(newH);
     };
 

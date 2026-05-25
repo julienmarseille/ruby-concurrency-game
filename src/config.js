@@ -3,17 +3,20 @@ export const TICK_MS          = 50;
 export const SPAWN_MS         = 2000;
 export const STATS_MS         = 1000;
 export const PIPE_TRAVEL_MS   = 150;
-export const MEM_BASE     = 200;
-export const MEM_MAX      = 3072;
-export const THREAD_MEM   = 50;
-export const PROCESS_MEM  = 100;
+export const MEM_BASE         = 200;
+export const MEM_MAX          = 3072;
+export const THREAD_MEM       = 50;
+export const PROCESS_MEM      = 100;
+export const THREAD_COST      = 100;
+export const PROCESS_COST     = 150;
 
 // ─── Layout (shared by JS modules) ───────────────────────────────────────────
-export const PAD          = 14;
-export const PIPE_W       = 48;
-export const PIPE_ENTRY_Y = 20;
-export const MEM_Y        = 20;
-export const MEM_DISPLAY_MAX = MEM_MAX;
+export const PAD              = 14;
+export const PIPE_W           = 48;
+export const PIPE_ENTRY_Y     = 20;
+export const MEM_Y            = 20;
+export const MEM_DISPLAY_MAX  = MEM_MAX;
+export const MONITOR_MIN_H    = 150;
 
 // ─── Spacing scale (8px base) ────────────────────────────────────────────────
 export const SPACING = {
@@ -42,43 +45,42 @@ export const LAYERS = {
   MEMORY_TEXT:   2,
   TRACE:         3,
   TRACE_LABELS:  4,
-  PROCESS_HDR:   4,
   CARDS:         5,
   TRACE_META:    6,
+  PROCESS_HDR:   14,
   PIPES:         7,
-  PARTICLES:    10,
+  PARTICLES:     10,
 };
 
-// ─── Colour palette ───────────────────────────────────────────────────────────
-export const C = {
-  bg:       0x0d1117,
-  card:     0x161b22,
-  cardCpu:  0x1a1300,
-  cardIo:   0x0a1929,
-  cardWait: 0x140d2a,
-  border:   0x30363d,
-  surface:  0x21262d,
-  pipe:     0x2d333b,
-  accent:   0x58a6ff,
-  cpu:      0xd29922,
-  io:       0x4299e1,
-  gvlWait:  0x6e40c9,
-  idle:     0x1c2128,
-  green:    0x3fb950,
-  text:     0xe6edf3,
-  textDim:  0x8b949e,
-  danger:   0xf85149,
+// ─── Colour palette (single source of truth) ─────────────────────────────────
+// C  = PixiJS hex numbers (0xRRGGBB)
+// CH = HTML/CSS hex strings ('#rrggbb')
+// CSS :root vars in style.css mirror these values.
+const PALETTE = {
+  bg:           '#0d1117',
+  card:         '#161b22',
+  cardCpu:      '#1a1300',
+  cardIo:       '#0a1929',
+  cardWait:     '#140d2a',
+  border:       '#30363d',
+  surface:      '#21262d',
+  pipe:         '#2d333b',
+  accent:       '#58a6ff',
+  cpu:          '#d29922',
+  io:           '#4299e1',
+  gvlWait:      '#6e40c9',
+  gvlWaitLight: '#8957e5',
+  idle:         '#1c2128',
+  green:        '#3fb950',
+  text:         '#e6edf3',
+  textDim:      '#8b949e',
+  danger:       '#f85149',
 };
 
-export const CH = {
-  cpu:     '#d29922',
-  io:      '#4299e1',
-  gvlWait: '#6e40c9',
-  idle:    '#1c2128',
-  text:    '#cdd9e5',
-  textDim: '#8b949e',
-  accent:  '#58a6ff',
-};
+export const C  = Object.fromEntries(
+  Object.entries(PALETTE).map(([k, v]) => [k, parseInt(v.slice(1), 16)])
+);
+export const CH = { ...PALETTE };
 
 // ─── Text style registry ─────────────────────────────────────────────────────
 export const TEXT_STYLES = {
@@ -86,17 +88,17 @@ export const TEXT_STYLES = {
   body:       { fontFamily: 'Courier New', fontSize: 10, fill: CH.text    },
   bodyDim:    { fontFamily: 'Courier New', fontSize: 10, fill: CH.textDim },
   threadName: { fontFamily: 'Courier New', fontSize: 11, fill: CH.textDim },
-  section:    { fontFamily: 'Courier New', fontSize: 13, fill: '#e6edf3', fontWeight: 'bold' },
+  section:    { fontFamily: 'Courier New', fontSize: 13, fill: CH.text, fontWeight: 'bold' },
 };
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 export const EVENTS = {
-  THREAD_ADDED:         'threadAdded',
-  PROCESS_ADDED:        'processAdded',
-  REQUEST_SPAWNED:      'requestSpawned',
-  REQUEST_ASSIGNED:     'requestAssigned',
-  REQUEST_COMPLETED:    'requestCompleted',
-  UPGRADE_UNLOCKED:     'upgradeUnlocked',
+  THREAD_ADDED:          'threadAdded',
+  PROCESS_ADDED:         'processAdded',
+  REQUEST_SPAWNED:       'requestSpawned',
+  REQUEST_ASSIGNED:      'requestAssigned',
+  REQUEST_COMPLETED:     'requestCompleted',
+  UPGRADE_UNLOCKED:      'upgradeUnlocked',
   THREADS_REDISTRIBUTED: 'threadsRedistributed',
 };
 

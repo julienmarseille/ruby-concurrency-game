@@ -7,6 +7,7 @@ export const UPGRADES = {
     desc:     'See the live incoming request queue and watch requests flow into threads.',
     cost:     20,
     requires: null,
+    effects:  { flash: 'Request Tracing unlocked!', showQueue: true },
   },
   monitoring: {
     id:       'monitoring',
@@ -16,6 +17,7 @@ export const UPGRADES = {
     desc:     'GVL wait %, memory usage and thread activity timeline.',
     cost:     40,
     requires: 'request_tracing',
+    effects:  { flash: 'Monitoring unlocked!', monitorUnlock: true },
   },
   throughput_graph: {
     id:       'throughput_graph',
@@ -25,6 +27,7 @@ export const UPGRADES = {
     desc:     'Live req/min chart showing how throughput evolves as you scale.',
     cost:     60,
     requires: 'request_tracing',
+    effects:  { flash: 'Throughput Graph unlocked!', monitorUnlock: true },
   },
   mixed_requests: {
     id:       'mixed_requests',
@@ -34,6 +37,7 @@ export const UPGRADES = {
     desc:     'Unlock POST /checkout — 50% I/O. Higher reward, more GVL contention.',
     cost:     80,
     requires: null,
+    effects:  { flash: 'Mixed Workload unlocked!' },
   },
   report_requests: {
     id:       'report_requests',
@@ -43,6 +47,7 @@ export const UPGRADES = {
     desc:     'Unlock GET /export.pdf — 90% CPU. High reward, pure GVL killer.',
     cost:     120,
     requires: 'mixed_requests',
+    effects:  { flash: 'PDF Reports unlocked!' },
   },
   process_monitor: {
     id:       'process_monitor',
@@ -52,5 +57,6 @@ export const UPGRADES = {
     desc:     'Per-process CPU / I/O / GVL wait breakdown. Reveals live state badges on process headers.',
     cost:     80,
     requires: 'monitoring',
+    effects:  { flash: 'Process Monitor unlocked!', monitorUnlock: true, enableProcessMonitor: true },
   },
 };
