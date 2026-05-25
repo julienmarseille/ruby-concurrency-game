@@ -15,7 +15,7 @@ export class ShopViewModel {
   }
 
   _processNodes(gs) {
-    return [1, 2, 3].map(n => {
+    return [1, 2, 3, 4].map(n => {
       const owned  = gs.processes.length >= n;
       const isFree = n === 1;
       const cost   = isFree ? 0 : PROCESS_COST;

@@ -18,6 +18,7 @@ export class ThreadsSection {
     this._isDragging = false;
 
     this._pipes = new PipeSystem(this._stage, PIPE_W / 2, PIPE_ENTRY_Y);
+    this._processMonitorEnabled = false;
 
     this._resizeCanvas();
     new ResizeObserver(() => { if (!this._isDragging) this._resizeAndLayout(); })
@@ -61,7 +62,12 @@ export class ThreadsSection {
   update(threads, deltaMS) {
     const now = performance.now();
     for (const card of this._cards) card.update(now);
+    for (const { header } of this._headers) header.update(threads, this._processMonitorEnabled);
     this._pipes.draw(deltaMS);
+  }
+
+  enableProcessMonitor() {
+    this._processMonitorEnabled = true;
   }
 
   relayout() {

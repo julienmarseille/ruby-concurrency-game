@@ -54,12 +54,13 @@ export class GameScene {
 
   _bindEvents() {
     this._events
-      .on(EVENTS.THREAD_ADDED,      t                 => this._onThreadAdded(t))
-      .on(EVENTS.PROCESS_ADDED,     proc              => this._onProcessAdded(proc))
-      .on(EVENTS.REQUEST_SPAWNED,   req               => this._queue.update(this.gs.queue))
-      .on(EVENTS.REQUEST_ASSIGNED,  ({ thread, req }) => this._onAssigned(thread, req))
-      .on(EVENTS.REQUEST_COMPLETED, ()                => this._info.addCompleted(this.gs.recentDone))
-      .on(EVENTS.UPGRADE_UNLOCKED,  id               => this._onUpgradeUnlocked(id));
+      .on(EVENTS.THREAD_ADDED,         t                 => this._onThreadAdded(t))
+      .on(EVENTS.PROCESS_ADDED,        proc              => this._onProcessAdded(proc))
+      .on(EVENTS.REQUEST_SPAWNED,      req               => this._queue.update(this.gs.queue))
+      .on(EVENTS.REQUEST_ASSIGNED,     ({ thread, req }) => this._onAssigned(thread, req))
+      .on(EVENTS.REQUEST_COMPLETED,    ()                => this._info.addCompleted(this.gs.recentDone))
+      .on(EVENTS.UPGRADE_UNLOCKED,     id               => this._onUpgradeUnlocked(id))
+      .on(EVENTS.THREADS_REDISTRIBUTED, n               => InfoPanel.flash(`Threads redistributed across ${n} processes`));
   }
 
   _update() {
@@ -102,6 +103,11 @@ export class GameScene {
     if (id === 'request_tracing') {
       this._applyQueueVisibility();
       InfoPanel.flash('Request Tracing unlocked!');
+    }
+    if (id === 'process_monitor') {
+      this._monitor.unlock('process_monitor');
+      this._threads.enableProcessMonitor();
+      InfoPanel.flash('Process Monitor unlocked!');
     }
     const narr = this._narrative.forUpgrade(id);
     if (narr) {

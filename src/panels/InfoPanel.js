@@ -20,9 +20,11 @@ const TREE_NODES = [
   })),
   { id: 'monitoring',       x: COL_OBS,    y: 8 + STEP * 3,   tooltipAlign: 'left'   },
   { id: 'throughput_graph', x: COL_THRUPUT,y: 8 + STEP * 3,   tooltipAlign: 'left'   },
+  { id: 'process_monitor',  x: COL_OBS,    y: 8 + STEP * 4,   tooltipAlign: 'left'   },
   { id: 'report_requests',  x: COL_CENTER, y: 8 + STEP * 3,    tooltipAlign: 'center' },
   { id: 'process_2',        x: PROC_X,     y: 8 + STEP * 2,    tooltipAlign: 'right'  },
   { id: 'process_3',        x: PROC_X,     y: 8 + STEP * 3,    tooltipAlign: 'right'  },
+  { id: 'process_4',        x: PROC_X,     y: 8 + STEP * 4,    tooltipAlign: 'right'  },
 ];
 
 const TREE_EDGES = [
@@ -32,9 +34,11 @@ const TREE_EDGES = [
   ['thread_1',        'thread_2'],
   ['request_tracing', 'monitoring'],
   ['request_tracing', 'throughput_graph'],
+  ['monitoring',      'process_monitor'],
   ['mixed_requests',  'report_requests'],
   ['thread_1',        'process_2'],
   ['process_2',       'process_3'],
+  ['process_3',       'process_4'],
   ...Array.from({ length: MAX_THREADS - 2 }, (_, i) => [`thread_${i + 2}`, `thread_${i + 3}`]),
 ];
 

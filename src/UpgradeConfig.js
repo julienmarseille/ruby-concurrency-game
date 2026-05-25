@@ -44,4 +44,13 @@ export const UPGRADES = {
     cost:     120,
     requires: 'mixed_requests',
   },
+  process_monitor: {
+    id:       'process_monitor',
+    name:     'Process Monitor',
+    icon:     '🔬',
+    category: 'observability',
+    desc:     'Per-process CPU / I/O / GVL wait breakdown. Reveals live state badges on process headers.',
+    cost:     80,
+    requires: 'monitoring',
+  },
 };

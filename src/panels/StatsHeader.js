@@ -14,7 +14,7 @@ export class StatsHeader {
     this._gvlStatEl.style.display = gs.hasUpgrade('monitoring') ? '' : 'none';
     if (gs.hasUpgrade('monitoring')) {
       const pct = gs.gvlWaitPct;
-      this._gvlEl.textContent = gs.totalActiveTicks ? pct + '%' : '—';
+      this._gvlEl.textContent = gs.totalActiveTicks ? pct + '% (1min avg)' : '—';
       this._gvlEl.style.color = pct > 60 ? '#f85149' : pct > 30 ? '#d29922' : '#9371e6';
     }
 
@@ -25,5 +25,4 @@ export class StatsHeader {
       this._rpsEl.textContent = current > 0 ? Math.round(current) + ' /min' : '—';
     }
   }
-
 }

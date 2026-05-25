@@ -1,6 +1,7 @@
 import { TraceGraph }      from '../objects/TraceGraph.js';
 import { ThroughputGraph } from '../objects/ThroughputGraph.js';
 import { MemoryMeter }     from '../objects/MemoryMeter.js';
+import { ProcessGraph }    from '../objects/ProcessGraph.js';
 import { MEM_Y, MEM_DISPLAY_MAX, SPACING } from '../config.js';
 
 const MONITOR_MIN_H     = 150;
@@ -17,8 +18,10 @@ export class MonitorSection {
     this._areaEl = document.getElementById('monitor-area');
     this._wrapEl = document.getElementById('monitor-canvas-wrap');
 
-    this._hasMonitoring = false;
-    this._hasThroughput = false;
+    this._hasMonitoring     = false;
+    this._hasThroughput     = false;
+    this._hasProcessMonitor = false;
+    this._processGraph      = null;
 
     this._trace           = new TraceGraph(this._stage, 0, 0, 0);
     this._throughputGraph = new ThroughputGraph(this._stage, 0, 0, 0);
@@ -54,6 +57,9 @@ export class MonitorSection {
     if (this._hasThroughput) {
       this._throughputGraph.draw(gs.throughputWindow, gs.overviewWindow);
     }
+    if (this._hasProcessMonitor && this._processGraph) {
+      this._processGraph.draw(gs.processMetrics.recent, gs.processMetrics.overview);
+    }
   }
 
   unlock(upgradeId) {
@@ -65,6 +71,10 @@ export class MonitorSection {
     if (upgradeId === 'throughput_graph') {
       this._hasThroughput = true;
       this._throughputGraph.setVisible(true);
+    }
+    if (upgradeId === 'process_monitor') {
+      this._hasProcessMonitor = true;
+      this._processGraph = new ProcessGraph(this._stage, 0, 0, this._app.screen.width);
     }
     this._areaEl.style.display = '';
     this._refreshHeight();
@@ -84,8 +94,10 @@ export class MonitorSection {
 
   _refreshHeight() {
     let h = 0;
-    if (this._hasMonitoring)  h += TRACE_PADDING_TOP + Math.max(80, this._trace.totalHeight + 4);
-    if (this._hasThroughput)  h += GRAPH_GAP + this._throughputGraph.totalHeight;
+    if (this._hasMonitoring)     h += TRACE_PADDING_TOP;
+    if (this._hasThroughput)     h += GRAPH_GAP + this._throughputGraph.totalHeight;
+    if (this._hasProcessMonitor && this._processGraph) h += SECTION_GAP + this._processGraph.totalHeight;
+    if (this._hasMonitoring)     h += SECTION_GAP + Math.max(80, this._trace.totalHeight + 4);
     if (h > 0) h += BOTTOM_PAD;
     this._wrapEl.style.height = Math.max(MONITOR_MIN_H, h) + 'px';
   }
@@ -103,6 +115,13 @@ export class MonitorSection {
       this._throughputGraph.setY(y);
       this._throughputGraph.setWidth(MW);
       y += this._throughputGraph.totalHeight;
+    }
+
+    if (this._hasProcessMonitor && this._processGraph) {
+      y += SECTION_GAP;
+      this._processGraph.setY(y);
+      this._processGraph.setWidth(MW);
+      y += this._processGraph.totalHeight;
     }
 
     if (this._hasMonitoring) {

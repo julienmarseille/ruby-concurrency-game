@@ -1,10 +1,10 @@
 // ─── Simulation ──────────────────────────────────────────────────────────────
 export const TICK_MS          = 50;
-export const SPAWN_MS         = 5000;
+export const SPAWN_MS         = 2000;
 export const STATS_MS         = 1000;
 export const PIPE_TRAVEL_MS   = 150;
 export const MEM_BASE     = 200;
-export const MEM_MAX      = 1024;
+export const MEM_MAX      = 3072;
 export const THREAD_MEM   = 50;
 export const PROCESS_MEM  = 100;
 
@@ -31,6 +31,8 @@ export const TRACE_SAMPLE_EVERY = 4;
 export const GRAPH_LABEL_W      = 72;
 export const TRACE_ROW_H        = 22;
 export const THROUGHPUT_H       = 88;
+export const PROCESS_GRAPH_H    = 128;
+export const TRACE_VISIBLE_ROWS = 4;
 export const OVERVIEW_AGGREGATE = 10;
 export const OVERVIEW_TICKS     = 300;
 
@@ -89,12 +91,13 @@ export const TEXT_STYLES = {
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 export const EVENTS = {
-  THREAD_ADDED:      'threadAdded',
-  PROCESS_ADDED:     'processAdded',
-  REQUEST_SPAWNED:   'requestSpawned',
-  REQUEST_ASSIGNED:  'requestAssigned',
-  REQUEST_COMPLETED: 'requestCompleted',
-  UPGRADE_UNLOCKED:  'upgradeUnlocked',
+  THREAD_ADDED:         'threadAdded',
+  PROCESS_ADDED:        'processAdded',
+  REQUEST_SPAWNED:      'requestSpawned',
+  REQUEST_ASSIGNED:     'requestAssigned',
+  REQUEST_COMPLETED:    'requestCompleted',
+  UPGRADE_UNLOCKED:     'upgradeUnlocked',
+  THREADS_REDISTRIBUTED: 'threadsRedistributed',
 };
 
 // ─── Request types ────────────────────────────────────────────────────────────
@@ -107,9 +110,9 @@ export const REQ_TYPES = {
     color: 0x4299e1,
     colorStr: '#4299e1',
     phases: [
-      { type: 'cpu', ms: 1000, label: 'Route & parse'  },
-      { type: 'io',  ms: 6000, label: 'SELECT query'   },
-      { type: 'cpu', ms: 1000, label: 'Serialize JSON' },
+      { type: 'cpu', ms: 800,  label: 'Route & parse'  },
+      { type: 'io',  ms: 4800, label: 'SELECT query'   },
+      { type: 'cpu', ms: 800,  label: 'Serialize JSON' },
     ],
     reward: 10,
   },
