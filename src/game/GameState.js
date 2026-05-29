@@ -1,4 +1,4 @@
-import { TICK_MS, MEM_BASE, MEM_MAX, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, EVENTS } from '../config.js';
+import { TICK_MS, MEM_BASE, MEM_MAX, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, BASE_SPAWN_RATE, EVENTS } from '../config.js';
 import { UPGRADES }                from '../UpgradeConfig.js';
 import { MetricsComputer }         from './MetricsComputer.js';
 import { ProcessMetricsComputer }  from './ProcessMetricsComputer.js';
@@ -87,7 +87,7 @@ export class GameState {
   }
 
   spawnRequest() {
-    if (this.queue.length > 12) return null;
+    if (this.queue.length > 100) return null;
     const pool = this._spawnStrategy.buildPool(this.upgrades);
     const req  = this._requestFactory.createRandom(pool);
     this.queue.push(req);
@@ -96,11 +96,15 @@ export class GameState {
   }
 
   autoSpawnRequests() {
-    if (this.queue.length < 5) {
-      while (this.queue.length < 7) this.spawnRequest();
-    } else if (this.queue.length < 10) {
-      this.spawnRequest();
+    const n = this.spawnRate;
+    for (let i = 0; i < n; i++) this.spawnRequest();
+  }
+
+  get spawnRate() {
+    for (let i = 5; i >= 1; i--) {
+      if (this.upgrades.has(`marketing_${i}`)) return UPGRADES[`marketing_${i}`].spawnPerInterval;
     }
+    return BASE_SPAWN_RATE;
   }
 
   step() {
@@ -113,8 +117,10 @@ export class GameState {
     this._processMetrics.sampleAll(this.processes, this.threads);
   }
 
-  get throughputWindow() { return this._metrics.throughputWindow; }
-  get overviewWindow()   { return this._metrics.overviewWindow; }
+  get throughputWindow()  { return this._metrics.throughputWindow; }
+  get completionsPerMin() { return this._metrics.completionsPerMin; }
+  get spawnsPerMin()      { return this.spawnRate * 60; }
+  get overviewWindow()    { return this._metrics.overviewWindow; }
   get gvlWaitPct()       { return this._metrics.gvlWaitPct; }
   get totalActiveTicks() { return this._metrics.hasData; }
   get threadCost()       { return this.threads.length === 0 ? 0 : THREAD_COST; }

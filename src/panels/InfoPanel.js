@@ -1,11 +1,12 @@
-const NODE_W      = 34;
-const MAX_THREADS = 12;
-const STEP        = 48;
-const COL_OBS     = 0;
-const COL_THRUPUT = 58;
-const COL_CENTER  = 130;
-const COL_THREAD  = 220;
-const PROC_X      = 294;
+const NODE_W        = 34;
+const MAX_THREADS   = 12;
+const STEP          = 48;
+const COL_OBS       = 0;
+const COL_THRUPUT   = 58;
+const COL_CENTER    = 130;
+const COL_THREAD    = 220;
+const PROC_X        = 294;
+const COL_MARKETING = 368;
 
 const TREE_NODES = [
   { id: 'process_1',        x: COL_CENTER, y: 8,               tooltipAlign: 'center' },
@@ -25,6 +26,11 @@ const TREE_NODES = [
   { id: 'process_2',        x: PROC_X,     y: 8 + STEP * 2,    tooltipAlign: 'right'  },
   { id: 'process_3',        x: PROC_X,     y: 8 + STEP * 3,    tooltipAlign: 'right'  },
   { id: 'process_4',        x: PROC_X,     y: 8 + STEP * 4,    tooltipAlign: 'right'  },
+  { id: 'marketing_1',     x: COL_MARKETING, y: 8 + STEP * 2,   tooltipAlign: 'right'  },
+  { id: 'marketing_2',     x: COL_MARKETING, y: 8 + STEP * 3,   tooltipAlign: 'right'  },
+  { id: 'marketing_3',     x: COL_MARKETING, y: 8 + STEP * 4,   tooltipAlign: 'right'  },
+  { id: 'marketing_4',     x: COL_MARKETING, y: 8 + STEP * 5,   tooltipAlign: 'right'  },
+  { id: 'marketing_5',     x: COL_MARKETING, y: 8 + STEP * 6,   tooltipAlign: 'right'  },
 ];
 
 const TREE_EDGES = [
@@ -40,6 +46,11 @@ const TREE_EDGES = [
   ['process_2',       'process_3'],
   ['process_3',       'process_4'],
   ...Array.from({ length: MAX_THREADS - 2 }, (_, i) => [`thread_${i + 2}`, `thread_${i + 3}`]),
+  ['thread_1',    'marketing_1'],
+  ['marketing_1', 'marketing_2'],
+  ['marketing_2', 'marketing_3'],
+  ['marketing_3', 'marketing_4'],
+  ['marketing_4', 'marketing_5'],
 ];
 
 function edgePath(from, to) {
@@ -54,7 +65,7 @@ function edgePath(from, to) {
   return `M ${x1} ${y1} C ${x1} ${midY} ${x2} ${midY} ${x2} ${y2}`;
 }
 
-const TREE_W = PROC_X + NODE_W + 4;
+const TREE_W = COL_MARKETING + NODE_W + 4;
 const TREE_H = 8 + (MAX_THREADS + 1) * STEP + NODE_W + 4;
 
 export class InfoPanel {

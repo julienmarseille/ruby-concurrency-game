@@ -62,7 +62,7 @@ export class ShopViewModel {
     const hasThread1 = gs.threads.length >= 1;
     return Object.values(UPGRADES).map(u => {
       const requiresMet = !u.requires || gs.upgrades.has(u.requires);
-      const parentMet   = (u.id === 'request_tracing' || u.id === 'mixed_requests') ? hasThread1 : true;
+      const parentMet   = (u.id === 'request_tracing' || u.id === 'mixed_requests' || u.id === 'marketing_1') ? hasThread1 : true;
       return {
         ...u,
         isThread:   false,

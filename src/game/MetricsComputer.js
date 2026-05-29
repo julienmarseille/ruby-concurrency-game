@@ -1,6 +1,6 @@
-import { TRACE_TICKS, TRACE_SAMPLE_EVERY, OVERVIEW_AGGREGATE, OVERVIEW_TICKS } from '../config.js';
+import { TICK_MS, TRACE_TICKS, TRACE_SAMPLE_EVERY, OVERVIEW_AGGREGATE, OVERVIEW_TICKS } from '../config.js';
 
-const OVERVIEW_ROLLING_W = 30; // 30 overview entries × 2s = 60s rolling window (matches recent graph)
+const OVERVIEW_ROLLING_W  = 30;
 
 export class MetricsComputer {
   constructor() {
@@ -15,9 +15,7 @@ export class MetricsComputer {
     this._overviewWindow        = [];
   }
 
-  recordCompletion() {
-    this._completionsThisSample++;
-  }
+  recordCompletion() { this._completionsThisSample++; }
 
   sample(waitingThreads, activeThreads) {
     this._sampleTick++;
@@ -49,8 +47,9 @@ export class MetricsComputer {
     }
   }
 
-  get throughputWindow()  { return this._throughputWindow; }
-  get overviewWindow()    { return this._overviewWindow; }
+  get throughputWindow()   { return this._throughputWindow; }
+  get overviewWindow()     { return this._overviewWindow; }
+  get completionsPerMin()  { return this._rawThroughputBuf.reduce((a, b) => a + b, 0); }
 
   get gvlWaitPct() {
     let totalWaiting = 0, totalActive = 0;

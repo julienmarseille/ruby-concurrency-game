@@ -1,6 +1,6 @@
 // ─── Simulation ──────────────────────────────────────────────────────────────
 export const TICK_MS          = 50;
-export const SPAWN_MS         = 2000;
+export const SPAWN_MS         = 1000;
 export const STATS_MS         = 1000;
 export const PIPE_TRAVEL_MS   = 150;
 export const MEM_BASE         = 200;
@@ -9,6 +9,7 @@ export const THREAD_MEM       = 50;
 export const PROCESS_MEM      = 100;
 export const THREAD_COST      = 100;
 export const PROCESS_COST     = 150;
+export const BASE_SPAWN_RATE  = 1;
 
 // ─── Layout (shared by JS modules) ───────────────────────────────────────────
 export const PAD              = 14;
