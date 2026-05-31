@@ -150,7 +150,9 @@ export class ThreadsSection {
       : CARDS_START_Y + 50;
     const H = Math.max(contentH, this._areaEl.clientHeight);
 
+    const savedScroll = this._areaEl.scrollTop;
     this._innerEl.style.height = H + 'px';
     this._app.renderer.resize(W, H);
+    this._areaEl.scrollTop = savedScroll;
   }
 }

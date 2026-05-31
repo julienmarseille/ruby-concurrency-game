@@ -22,19 +22,27 @@ export class ProcessGraph extends DualPanelGraph {
     this._yLabelsRecent   = this._createYLabels(Y_TICKS);
     this._yLabelsOverview = this._createYLabels(Y_TICKS);
 
-    this._legend = SERIES.map(s => {
-      const t = new Text({ text: s.label, style: { ...TEXT_STYLES.label, fill: s.color } });
-      this._meta.addChild(t);
-      return t;
-    });
+    this._legend        = SERIES.map(s => this._makeLegendItem(s));
+    this._legendOverview = SERIES.map(s => this._makeLegendItem(s));
 
     this._positionMeta();
   }
 
+  _makeLegendItem(s) {
+    const t = new Text({ text: s.label, style: { ...TEXT_STYLES.label, fill: s.color } });
+    this._meta.addChild(t);
+    return t;
+  }
+
   _positionMeta() {
     this._positionTitles();
+    const pW = this._panelWidth();
     this._legend?.forEach((t, i) => {
       t.x = PAD + LABEL_W + 4 + i * 56;
+      t.y = this._y + GRAPH_H + 6;
+    });
+    this._legendOverview?.forEach((t, i) => {
+      t.x = pW + GAP + PAD + LABEL_W + 4 + i * 56;
       t.y = this._y + GRAPH_H + 6;
     });
   }
@@ -82,6 +90,12 @@ export class ProcessGraph extends DualPanelGraph {
 
     gfx.moveTo(x0 + LABEL_W, y0).lineTo(x0 + LABEL_W, y0 + GRAPH_H + 4)
       .stroke({ color: C.border, width: 1 });
+  }
+
+  setFibersEnabled(enabled) {
+    const label = enabled ? 'CPU wait' : 'GVL wait';
+    if (this._legend?.[1])         this._legend[1].text         = label;
+    if (this._legendOverview?.[1]) this._legendOverview[1].text = label;
   }
 
   get totalHeight() { return GRAPH_H + 30; }

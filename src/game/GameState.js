@@ -120,7 +120,7 @@ export class GameState {
     const { waiting, active } = this._advancePhases(now);
     this._gvl.postStep(this.processes, this.threads, now);
     this._metrics.sample(waiting, active);
-    this._processMetrics.sampleAll(this.processes, this.threads);
+    this._processMetrics.sampleAll(this.processes, this.threads, this._fibersEnabled);
   }
 
   get throughputWindow()  { return this._metrics.throughputWindow; }
@@ -228,7 +228,7 @@ export class GameState {
 
     for (const fiber of t.extraFibers) {
       if (!fiber.request) continue;
-      active++;
+      const started = fiber.phaseIdx > 0 || fiber.phaseElapsed > 0;
       const phase = fiber.request.def.phases[fiber.phaseIdx];
 
       let didAdvance;
@@ -240,8 +240,12 @@ export class GameState {
         didAdvance   = true;
       } else {
         fiber.status = 'queued';
-        waiting++;
         didAdvance   = false;
+      }
+
+      if (started) {
+        active++;
+        if (!didAdvance) waiting++;
       }
 
       if (didAdvance) {
@@ -261,6 +265,7 @@ export class GameState {
 
     for (const fiber of toComplete) this._completeFiber(t, fiber);
     t.extraFibers = t.extraFibers.filter(f => f.request !== null);
+    this._updateFiberCpuHolder(t);
     return { waiting, active };
   }
 

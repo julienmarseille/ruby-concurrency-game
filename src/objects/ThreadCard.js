@@ -20,7 +20,7 @@ const TRANSITION_MS   = 250;
 
 const STATUS_COLORS = {
   idle:       { border: C.border,  badge: C.surface,  text: CH.textDim,      label: 'idle'     },
-  fiber_host: { border: C.accent,  badge: 0x0d1e35,   text: CH.accent,       label: 'fibers'   },
+  fiber_host: { border: C.border,  badge: C.surface,  text: CH.textDim,      label: 'fibers'   },
   cpu:        { border: C.cpu,     badge: 0x3a2800,   text: CH.cpu,          label: 'CPU'      },
   io:         { border: C.io,      badge: 0x0a2540,   text: CH.io,           label: 'I/O'      },
   gvl_wait:   { border: C.gvlWait, badge: 0x1e1040,   text: CH.gvlWaitLight, label: 'GVL wait' },

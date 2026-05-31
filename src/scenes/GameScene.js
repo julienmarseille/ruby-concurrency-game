@@ -4,7 +4,6 @@ import { GameEvents }           from '../core/GameEvents.js';
 import { GameTimer }            from '../core/GameTimer.js';
 import { GameState }            from '../game/GameState.js';
 import { ShopViewModel }        from '../game/ShopViewModel.js';
-import { NARRATIVE }            from '../NarrativeConfig.js';
 import { ThreadsSection }       from '../sections/ThreadsSection.js';
 import { MonitorSection }       from '../sections/MonitorSection.js';
 import { DragResizeController } from '../sections/DragResizeController.js';
@@ -43,7 +42,6 @@ export class GameScene {
     );
 
     this._refreshShop();
-    this._info.setExplanation(NARRATIVE.initial);
     this._applyQueueVisibility();
     this._bindEvents();
 
@@ -59,7 +57,7 @@ export class GameScene {
       .on(EVENTS.PROCESS_ADDED,         proc              => this._onProcessAdded(proc))
       .on(EVENTS.REQUEST_SPAWNED,       ()                => this._queue.update(this.gs.queue))
       .on(EVENTS.REQUEST_ASSIGNED,      ({ thread, req, isFiber }) => this._onAssigned(thread, req, isFiber))
-      .on(EVENTS.REQUEST_COMPLETED,     ()                => this._info.addCompleted(this.gs.recentDone))
+      .on(EVENTS.REQUEST_COMPLETED,     ()                => this._refreshShop())
       .on(EVENTS.UPGRADE_UNLOCKED,      id                => this._onUpgradeUnlocked(id))
       .on(EVENTS.THREADS_REDISTRIBUTED, n                 => InfoPanel.flash(`Threads redistributed across ${n} processes`));
   }
@@ -76,7 +74,6 @@ export class GameScene {
     this._threads.update(this.gs.threads, deltaMS);
     this._monitor.update(this.gs);
     this._queue.update(this.gs.queue);
-    this._info.addCompleted(this.gs.recentDone);
   }
 
   _onThreadAdded(thread) {
@@ -115,10 +112,9 @@ export class GameScene {
       if (effects.enableProcessMonitor) this._threads.enableProcessMonitor();
     }
     if (id === 'fiber_scheduler') {
+      this._monitor.setFibersEnabled(true);
       requestAnimationFrame(() => this._threads.relayout());
     }
-    const narr = NARRATIVE.upgrades[id] ?? null;
-    if (narr) this._info.setExplanation(narr);
     this._refreshShop();
   }
 
@@ -131,13 +127,10 @@ export class GameScene {
   }
 
   _buyThread() {
-    const n = this.gs.threads.length;
     if (!this.gs.addThread(false)) {
       InfoPanel.flash(this.gs.money < THREAD_COST ? 'Not enough money!' : 'Not enough RAM!');
       return;
     }
-    const threadCount = n + 1;
-    this._info.setExplanation(NARRATIVE.threadAdded[Math.min(threadCount, 4)] ?? NARRATIVE.threadAddedFallback(threadCount));
     this._refreshShop();
   }
 
@@ -148,14 +141,12 @@ export class GameScene {
   _buyProcess(id) {
     if (id === 'process_1') {
       this.gs.addFirstProcess();
-      this._info.setExplanation(NARRATIVE.processCreated);
       return;
     }
     if (!this.gs.addProcess()) {
       InfoPanel.flash(this.gs.money < PROCESS_COST ? 'Not enough money!' : 'Not enough RAM!');
       return;
     }
-    this._info.setExplanation(NARRATIVE.processAdded);
   }
 
   _refreshShop() {

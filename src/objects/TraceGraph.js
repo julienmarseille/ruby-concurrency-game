@@ -90,7 +90,14 @@ export class TraceGraph {
     for (const t of threads) {
       const buf = this._buffers[t.id];
       if (!buf) continue;
-      buf.push(t.status);
+      let status = t.status;
+      if (t.fiberHost) {
+        if (t.cpuFiberId !== null)                              status = 'cpu';
+        else if (t.extraFibers?.some(f => f.status === 'io'))  status = 'io';
+        else if (t.extraFibers?.some(f => f.request))          status = 'queued';
+        else                                                    status = 'idle';
+      }
+      buf.push(status);
       if (buf.length > TRACE_TICKS) buf.shift();
     }
   }
@@ -145,6 +152,10 @@ export class TraceGraph {
       const label = this._threadLabels[id];
       if (label) { label.x = PAD; label.y = this._y + i * ROW_H + 6; }
     });
+  }
+
+  setFibersEnabled(enabled) {
+    if (this._legendTexts?.[2]) this._legendTexts[2].text = enabled ? 'CPU wait' : 'GVL wait';
   }
 
   setVisible(v) {

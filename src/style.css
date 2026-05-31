@@ -62,8 +62,6 @@ header#hdr { background: var(--bg-card); border-bottom: 1px solid var(--border);
 .cpu   .req-dot { background: var(--req-cpu); }
 .req-reward { margin-left: auto; color: var(--text-dim); font-size: 10px; }
 
-.explanation-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px; font-size: 11px; line-height: 1.7; color: var(--text-dim); flex-shrink: 0; }
-.explanation-box h3 { font-size: 12px; color: var(--text); margin-bottom: 6px; font-weight: bold; }
 
 .cost-ok { color: var(--green); } .cost-no { color: #2a5c38; }
 
@@ -118,13 +116,9 @@ header#hdr { background: var(--bg-card); border-bottom: 1px solid var(--border);
 .tree-tooltip-cost { font-size: 10px; margin-bottom: 4px; }
 .tree-tooltip-desc { color: var(--text-dim); }
 
-.completed-item { display: flex; align-items: center; gap: 6px; font-size: 10px; padding: 4px 0; border-bottom: 1px solid var(--bg-surface); }
-.completed-item.new { animation: fadeIn 0.3s ease; }
-.completed-money { color: var(--green); font-weight: bold; margin-left: auto; }
 
 .alert-flash { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); background: var(--danger); color: white; padding: 6px 16px; border-radius: var(--radius-md); font-size: 11px; z-index: 100; animation: fIn 0.2s ease, fOut 0.4s ease 1.6s forwards; }
 
 @keyframes slideIn { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
-@keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
 @keyframes fIn  { from{opacity:0;top:48px;} to{opacity:1;top:58px;} }
 @keyframes fOut { from{opacity:1;} to{opacity:0;} }

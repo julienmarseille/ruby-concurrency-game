@@ -13,7 +13,7 @@ export class ThroughputGraph extends DualPanelGraph {
     this._yMaxOverview = 0.5;
 
     this._titleRecent   = this._createLabel('Throughput — last 1 min');
-    this._titleOverview = this._createLabel('Overview — last 10 min');
+    this._titleOverview = this._createLabel('Throughput — last 10 min');
 
     this._yLabelsRecent   = this._createYLabels(Y_TICKS);
     this._yLabelsOverview = this._createYLabels(Y_TICKS);

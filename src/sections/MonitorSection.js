@@ -21,6 +21,8 @@ export class MonitorSection {
     this._hasThroughput     = false;
     this._hasProcessMonitor = false;
     this._processGraph      = null;
+    this._fibersEnabled     = false;
+    this._userResized       = false;
 
     this._trace           = new TraceGraph(0, 0, 0);
     this._throughputGraph = new ThroughputGraph(0, 0, 0);
@@ -39,13 +41,13 @@ export class MonitorSection {
 
   addThread(thread) {
     this._trace.addThread(thread);
-    this._refreshHeight();
+    if (!this._userResized) this._refreshHeight();
     this._scheduleLayout();
   }
 
   removeThread(threadId) {
     this._trace.removeThread(threadId);
-    this._refreshHeight();
+    if (!this._userResized) this._refreshHeight();
     this._scheduleLayout();
   }
 
@@ -80,6 +82,7 @@ export class MonitorSection {
       this._hasProcessMonitor = true;
       this._processGraph = new ProcessGraph(0, 0, this._app.screen.width);
       this._processGraph.addTo(this._stage);
+      if (this._fibersEnabled) this._processGraph.setFibersEnabled(true);
     }
     this._areaEl.style.display = '';
     this._refreshHeight();
@@ -96,7 +99,14 @@ export class MonitorSection {
   }
 
   setHeight(h) {
+    this._userResized = true;
     this._wrapEl.style.height = h + 'px';
+  }
+
+  setFibersEnabled(enabled) {
+    this._fibersEnabled = enabled;
+    this._trace.setFibersEnabled(enabled);
+    this._processGraph?.setFibersEnabled(enabled);
   }
 
   get wrapEl() { return this._wrapEl; }

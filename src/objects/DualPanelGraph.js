@@ -54,9 +54,9 @@ export class DualPanelGraph {
   _positionTitles() {
     const pW = this._panelWidth();
     this._titleRecent.x   = PAD;
-    this._titleRecent.y   = this._y - 14;
+    this._titleRecent.y   = this._y - 20;
     this._titleOverview.x = pW + GAP + PAD;
-    this._titleOverview.y = this._y - 14;
+    this._titleOverview.y = this._y - 20;
   }
 
   _positionMeta() {

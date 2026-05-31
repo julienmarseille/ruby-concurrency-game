@@ -74,14 +74,11 @@ const TREE_H = 8 + (MAX_THREADS + 1) * STEP + NODE_W + 4;
 
 export class InfoPanel {
   constructor(onBuyThread, onBuyUpgrade, onBuyProcess) {
-    this._onBuyThread   = onBuyThread;
-    this._onBuyUpgrade  = onBuyUpgrade;
-    this._onBuyProcess  = onBuyProcess;
-    this._completedEl   = document.getElementById('completed-list');
-    this._shopEl        = document.getElementById('shop');
-    this._explanationEl = document.getElementById('explanation-box');
-    this._completedSeen = new Set();
-    this._shopKey       = null;
+    this._onBuyThread  = onBuyThread;
+    this._onBuyUpgrade = onBuyUpgrade;
+    this._onBuyProcess = onBuyProcess;
+    this._shopEl       = document.getElementById('shop');
+    this._shopKey      = null;
 
     this._shopEl.addEventListener('click', e => {
       const node = e.target.closest('[data-action]');
@@ -90,10 +87,6 @@ export class InfoPanel {
       if (node.dataset.action === 'thread')  this._onBuyThread();
       if (node.dataset.action === 'process') this._onBuyProcess(node.dataset.id);
     });
-  }
-
-  setExplanation({ title, body }) {
-    this._explanationEl.innerHTML = `<h3>${title}</h3>${body}`;
   }
 
   renderShop(items) {
@@ -156,19 +149,6 @@ export class InfoPanel {
     }).join('');
 
     this._shopEl.innerHTML = `<div class="tree-wrap" style="height:${TREE_H}px;width:${TREE_W}px">${svg}${nodes}</div>`;
-  }
-
-  addCompleted(recentDone) {
-    for (const r of recentDone) {
-      if (this._completedSeen.has(r.id)) continue;
-      this._completedSeen.add(r.id);
-      const item = document.createElement('div');
-      item.className = 'completed-item new';
-      item.innerHTML = `<span>${r.emoji}</span><span style="color:#8b949e">#${r.id} ${r.sub}</span><span class="completed-money">+$${r.reward}</span>`;
-      item.addEventListener('animationend', () => item.classList.remove('new'), { once: true });
-      this._completedEl.insertBefore(item, this._completedEl.firstChild);
-      while (this._completedEl.children.length > 14) this._completedEl.removeChild(this._completedEl.lastChild);
-    }
   }
 
   static flash(msg) {
