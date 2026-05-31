@@ -1,9 +1,11 @@
+import { MAX_THREADS } from '../config.js';
+
 const NODE_W        = 34;
-const MAX_THREADS   = 12;
 const STEP          = 48;
 const COL_OBS       = 0;
 const COL_THRUPUT   = 58;
 const COL_CENTER    = 130;
+const COL_FIBER     = 178;
 const COL_THREAD    = 220;
 const PROC_X        = 294;
 const COL_MARKETING = 368;
@@ -23,6 +25,7 @@ const TREE_NODES = [
   { id: 'throughput_graph', x: COL_THRUPUT,y: 8 + STEP * 3,   tooltipAlign: 'left'   },
   { id: 'process_monitor',  x: COL_OBS,    y: 8 + STEP * 4,   tooltipAlign: 'left'   },
   { id: 'report_requests',  x: COL_CENTER, y: 8 + STEP * 3,    tooltipAlign: 'center' },
+  { id: 'fiber_scheduler',  x: COL_FIBER,  y: 8 + STEP * 2,    tooltipAlign: 'center' },
   { id: 'process_2',        x: PROC_X,     y: 8 + STEP * 2,    tooltipAlign: 'right'  },
   { id: 'process_3',        x: PROC_X,     y: 8 + STEP * 3,    tooltipAlign: 'right'  },
   { id: 'process_4',        x: PROC_X,     y: 8 + STEP * 4,    tooltipAlign: 'right'  },
@@ -42,6 +45,7 @@ const TREE_EDGES = [
   ['request_tracing', 'throughput_graph'],
   ['monitoring',      'process_monitor'],
   ['mixed_requests',  'report_requests'],
+  ['thread_1',        'fiber_scheduler'],
   ['thread_1',        'process_2'],
   ['process_2',       'process_3'],
   ['process_3',       'process_4'],

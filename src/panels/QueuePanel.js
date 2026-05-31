@@ -1,3 +1,5 @@
+import { CH } from '../config.js';
+
 const PHASE_COLORS = { cpu: 'rgba(210, 153, 34, 0.22)', io: 'rgba(66, 153, 225, 0.22)' };
 
 function phaseGradient(phases) {
@@ -11,7 +13,7 @@ function phaseGradient(phases) {
     const color = PHASE_COLORS[phase.type] ?? 'rgba(255,255,255,0)';
     stops.push(`${color} ${start}%`, `${color} ${end}%`);
   }
-  return `linear-gradient(to right, ${stops.join(', ')}), #0d1117`;
+  return `linear-gradient(to right, ${stops.join(', ')}), ${CH.bg}`;
 }
 
 export class QueuePanel {

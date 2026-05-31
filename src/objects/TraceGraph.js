@@ -72,6 +72,18 @@ export class TraceGraph {
     this._positionMeta();
   }
 
+  removeThread(threadId) {
+    delete this._buffers[threadId];
+    this._threadOrder = this._threadOrder.filter(id => id !== threadId);
+    const label = this._threadLabels[threadId];
+    if (label) {
+      this._labelsContainer.removeChild(label);
+      label.destroy();
+      delete this._threadLabels[threadId];
+    }
+    this._positionMeta();
+  }
+
   sample(threads) {
     this._tickCount++;
     if (this._tickCount % TRACE_SAMPLE_EVERY !== 0) return;

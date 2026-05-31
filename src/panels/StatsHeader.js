@@ -1,3 +1,5 @@
+import { CH } from '../config.js';
+
 export class StatsHeader {
   constructor() {
     this._moneyEl       = document.getElementById('hdr-money');
@@ -11,13 +13,13 @@ export class StatsHeader {
 
   update(gs) {
     this._moneyEl.textContent = '$' + gs.money;
-    this._moneyEl.style.color = '#3fb950';
+    this._moneyEl.style.color = CH.green;
 
     this._gvlStatEl.style.display = gs.hasUpgrade('monitoring') ? '' : 'none';
     if (gs.hasUpgrade('monitoring')) {
       const pct = gs.gvlWaitPct;
       this._gvlEl.textContent = gs.totalActiveTicks ? pct + '% (1min avg)' : '—';
-      this._gvlEl.style.color = pct > 60 ? '#f85149' : pct > 30 ? '#d29922' : '#9371e6';
+      this._gvlEl.style.color = pct > 60 ? CH.danger : pct > 30 ? CH.cpu : '#9371e6';
     }
 
     this._rpsStatEl.style.display = gs.hasUpgrade('throughput_graph') ? '' : 'none';

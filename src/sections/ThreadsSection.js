@@ -29,10 +29,21 @@ export class ThreadsSection {
   addCard(thread) {
     const cardW = this._app.screen.width - PIPE_W - PAD;
     const card  = new ThreadCard(PIPE_W, 0, cardW, thread);
+    card.onFiberCountChanged(() => this._resizeAndLayout());
     this._stage.addChild(card);
     this._cards.push(card);
     this._resizeAndLayout();
     return card;
+  }
+
+  removeCard(threadId) {
+    const idx = this._cards.findIndex(c => c.threadId === threadId);
+    if (idx === -1) return;
+    const card = this._cards[idx];
+    this._stage.removeChild(card);
+    card.destroy();
+    this._cards.splice(idx, 1);
+    this._resizeAndLayout();
   }
 
   addProcessHeader(processId) {
@@ -57,7 +68,7 @@ export class ThreadsSection {
     const arrivalAt = performance.now() + PIPE_TRAVEL_MS;
     thread.pendingUntil = arrivalAt;
     card.setIncoming(arrivalAt);
-    this._pipes.spawnParticle(fromPos, card, req.type);
+    this._pipes.spawnParticle(fromPos, card, req.def?.color ?? 0x4299e1);
   }
 
   update(threads, deltaMS) {

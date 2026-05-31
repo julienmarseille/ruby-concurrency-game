@@ -10,6 +10,8 @@ export const PROCESS_MEM      = 100;
 export const THREAD_COST      = 100;
 export const PROCESS_COST     = 150;
 export const BASE_SPAWN_RATE  = 1;
+export const FIBER_MEM        = 25;
+export const MAX_THREADS      = 12;
 
 // ─── Layout (shared by JS modules) ───────────────────────────────────────────
 export const PAD              = 14;
@@ -95,6 +97,7 @@ export const TEXT_STYLES = {
 // ─── Events ───────────────────────────────────────────────────────────────────
 export const EVENTS = {
   THREAD_ADDED:          'threadAdded',
+  THREAD_REMOVED:        'threadRemoved',
   PROCESS_ADDED:         'processAdded',
   REQUEST_SPAWNED:       'requestSpawned',
   REQUEST_ASSIGNED:      'requestAssigned',
@@ -116,6 +119,40 @@ export const REQ_TYPES = {
       { type: 'cpu', ms: 800,  label: 'Route & parse'  },
       { type: 'io',  ms: 4800, label: 'SELECT query'   },
       { type: 'cpu', ms: 800,  label: 'Serialize JSON' },
+    ],
+    reward: 10,
+  },
+
+  DB_REQUEST_HEAVY_START: {
+    label: 'GET /profile',
+    sub: 'Fetch + process',
+    cls: 'io',
+    emoji: '🔷',
+    color: 0x29b6f6,
+    colorStr: '#29b6f6',
+    phases: [
+      { type: 'cpu', ms: 200,  label: 'Auth & route'      },
+      { type: 'io',  ms: 4800, label: 'SELECT query'      },
+      { type: 'cpu', ms: 1400, label: 'Process & respond' },
+    ],
+    reward: 10,
+  },
+
+  DB_REQUEST_FRAGMENTED: {
+    label: 'POST /search',
+    sub: 'Multi-query',
+    cls: 'io',
+    emoji: '💠',
+    color: 0x26c6da,
+    colorStr: '#26c6da',
+    phases: [
+      { type: 'cpu', ms: 400,  label: 'Parse query'    },
+      { type: 'io',  ms: 1600, label: 'Index lookup'   },
+      { type: 'cpu', ms: 400,  label: 'Filter results' },
+      { type: 'io',  ms: 1600, label: 'Fetch records'  },
+      { type: 'cpu', ms: 400,  label: 'Rank & sort'    },
+      { type: 'io',  ms: 1600, label: 'Load relations' },
+      { type: 'cpu', ms: 400,  label: 'Serialize'      },
     ],
     reward: 10,
   },

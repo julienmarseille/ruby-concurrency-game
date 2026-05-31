@@ -22,8 +22,7 @@ export class PipeSystem {
   setCards(cards) { this._cards = cards; this._pipeDirty = true; }
   setTrunkX(x)    { this._trunkX = x;   this._pipeDirty = true; }
 
-  spawnParticle(fromPos, toCard, reqType) {
-    const color = reqType === 'DB_REQUEST' ? 0x4299e1 : reqType === 'MIXED' ? 0xe8a838 : 0xfc8181;
+  spawnParticle(fromPos, toCard, color) {
     const dot   = new Graphics();
     this._dotLayer.addChild(dot);
     this._particles.push({ fromPos, toCard, color, dot, elapsed: 0, duration: PIPE_TRAVEL_MS });
@@ -52,7 +51,6 @@ export class PipeSystem {
   }
 
   destroy() {
-    for (const p of this._particles) p.dot.destroy();
     this._particles = [];
     this._pipeGfx.destroy();
     this._dotLayer.destroy({ children: true });
@@ -62,7 +60,7 @@ export class PipeSystem {
     const { fromPos, toCard } = p;
     const trunkX  = this._trunkX;
     const entryY  = this._entryY;
-    const branchY = toCard.y + toCard.cardHeight / 2;
+    const branchY = toCard.pipeTargetY ?? (toCard.y + toCard.cardHeight / 2);
     const toX     = toCard.x;
 
     const d01   = Math.hypot(-fromPos.x, entryY - fromPos.y);
@@ -95,7 +93,7 @@ export class PipeSystem {
 
     const hasCards = this._cards.length > 0;
     const bottomY  = hasCards
-      ? Math.max(...this._cards.map(c => c.y + c.cardHeight / 2))
+      ? Math.max(...this._cards.map(c => c.pipeTargetY ?? (c.y + c.cardHeight / 2)))
       : entryY + 20;
 
     gfx.moveTo(0, entryY).lineTo(trunkX, entryY)
@@ -104,7 +102,7 @@ export class PipeSystem {
       .stroke({ width: 2, color: C.pipe });
 
     for (const card of this._cards) {
-      const branchY = card.y + card.cardHeight / 2;
+      const branchY = card.pipeTargetY ?? (card.y + card.cardHeight / 2);
       gfx.moveTo(trunkX, branchY).lineTo(card.x, branchY)
         .stroke({ width: 2, color: C.pipe });
     }

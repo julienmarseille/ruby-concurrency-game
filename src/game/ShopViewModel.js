@@ -1,7 +1,5 @@
 import { UPGRADES } from '../UpgradeConfig.js';
-import { MEM_MAX, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST } from '../config.js';
-
-const MAX_THREADS = 12;
+import { MEM_MAX, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, MAX_THREADS } from '../config.js';
 
 export class ShopViewModel {
   compute(gs) {
@@ -38,20 +36,26 @@ export class ShopViewModel {
 
   _threadNodes(gs) {
     const hasProcess1 = gs.processes.length >= 1;
+    const fiberMode   = gs.fibersEnabled;
     return Array.from({ length: MAX_THREADS }, (_, i) => {
       const n     = i + 1;
       const owned = gs.threads.length >= n;
       const ramOk = gs.memUsed + THREAD_MEM <= MEM_MAX;
+      // In fiber mode: 1 thread per process (Falcon reactor), max 4 total
+      const unlockedFiber = gs.processes.length >= n && (owned || ramOk);
+      const unlockedNormal = hasProcess1 && (gs.threads.length >= n - 1) && (owned || ramOk);
       return {
         id:         `thread_${n}`,
         name:       `Thread ${n}`,
-        icon:       '🧵',
-        desc:       `OS thread · shares the GVL · uses ${THREAD_MEM}MB RAM`,
+        icon:       fiberMode ? '🪡' : '🧵',
+        desc:       fiberMode
+          ? `Falcon reactor thread — 1 per process. Handles all fibers for Process ${n}.`
+          : `OS thread · shares the GVL · uses ${THREAD_MEM}MB RAM`,
         cost:       THREAD_COST,
         isThread:   true,
         isFree:     false,
         owned,
-        unlocked:   hasProcess1 && (gs.threads.length >= n - 1) && (owned || ramOk),
+        unlocked:   fiberMode ? unlockedFiber : unlockedNormal,
         affordable: owned || gs.money >= THREAD_COST,
         moneyPct:   Math.min(1, gs.money / THREAD_COST),
       };
@@ -62,7 +66,7 @@ export class ShopViewModel {
     const hasThread1 = gs.threads.length >= 1;
     return Object.values(UPGRADES).map(u => {
       const requiresMet = !u.requires || gs.upgrades.has(u.requires);
-      const parentMet   = (u.id === 'request_tracing' || u.id === 'mixed_requests' || u.id === 'marketing_1') ? hasThread1 : true;
+      const parentMet   = !u.requiresThread || hasThread1;
       return {
         ...u,
         isThread:   false,

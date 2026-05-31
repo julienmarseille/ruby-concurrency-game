@@ -40,12 +40,13 @@ export class MonitorSection {
   addThread(thread) {
     this._trace.addThread(thread);
     this._refreshHeight();
-    requestAnimationFrame(() => {
-      const W = this._wrapEl.clientWidth;
-      const H = this._wrapEl.clientHeight;
-      if (W > 0 && H > 0) this._app.renderer.resize(W, H);
-      this._layout();
-    });
+    this._scheduleLayout();
+  }
+
+  removeThread(threadId) {
+    this._trace.removeThread(threadId);
+    this._refreshHeight();
+    this._scheduleLayout();
   }
 
   sampleTrace(threads) {
@@ -82,6 +83,10 @@ export class MonitorSection {
     }
     this._areaEl.style.display = '';
     this._refreshHeight();
+    this._scheduleLayout();
+  }
+
+  _scheduleLayout() {
     requestAnimationFrame(() => {
       const W = this._wrapEl.clientWidth;
       const H = this._wrapEl.clientHeight;

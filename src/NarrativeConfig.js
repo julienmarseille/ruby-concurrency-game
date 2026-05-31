@@ -24,6 +24,14 @@ export const NARRATIVE = {
         Only 10% I/O — adding threads <strong>does nothing</strong>. High reward ($30) but it hogs the GVL.<br><br>
         <em>"More threads ≠ more throughput when the GVL is the bottleneck."</em>`,
     },
+    fiber_scheduler: {
+      title: 'Falcon mode — fibers replace threads!',
+      body: `Extra threads removed. <strong>1 thread per process</strong>, fibers handle concurrency.<br><br>
+        During <span style="color:#4299e1"><strong>I/O phases</strong></span> (DB query, auth), a fiber yields instantly — another fiber runs immediately. The thread registers the IO with the OS (epoll) and moves on.<br><br>
+        During <span style="color:#d29922"><strong>CPU phases</strong></span>, only one fiber runs at a time — <strong>not because of the GVL</strong>, but because scheduling is cooperative. A fiber keeps the CPU until it hits IO or finishes. Other fibers are <span style="color:#8957e5"><strong>queued</strong></span> in the scheduler.<br><br>
+        Watch the fiber rows appear below the thread card. RAM freed from threads is now available for more fibers.<br><br>
+        <em>This is how Falcon handles thousands of concurrent requests with a single OS thread per process.</em>`,
+    },
   },
 
   processAdded: {

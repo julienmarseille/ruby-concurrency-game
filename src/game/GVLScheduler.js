@@ -20,8 +20,8 @@ export class GVLScheduler {
   grantNext(proc, threads, now) {
     const waiter = threads.find(t => t.processId === proc.id && t.status === 'gvl_wait');
     if (waiter) {
-      proc.gvlHolder    = waiter.id;
-      waiter.status     = 'cpu';
+      proc.gvlHolder      = waiter.id;
+      waiter.status       = 'cpu';
       waiter.phaseRunWall = now;
     }
   }
