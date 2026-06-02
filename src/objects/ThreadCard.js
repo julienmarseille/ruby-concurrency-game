@@ -197,6 +197,12 @@ export class ThreadCard extends Container {
     this._onFiberCountChanged = cb;
   }
 
+  shiftTimestamps(offset) {
+    if (this._particleArrivalAt > 0) this._particleArrivalAt += offset;
+    for (const [, tr]    of this._transitions)  tr.startedAt    += offset;
+    for (const [, slide] of this._readySlides)  slide.startedAt += offset;
+  }
+
   destroy() {
     this._gvlMask.destroy(true);
     this._gvlOverlay.destroy(true);

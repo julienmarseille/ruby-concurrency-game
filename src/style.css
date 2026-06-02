@@ -30,7 +30,11 @@ header#hdr { background: var(--bg-card); border-bottom: 1px solid var(--border);
 .stat { background: var(--bg-surface); padding: 4px 12px; border-radius: var(--radius-md); min-width: 76px; }
 .stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-value { font-size: 15px; font-weight: bold; color: var(--text-bright); }
-.phase-badge { margin-left: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px 10px; font-size: 10px; color: var(--text-dim); }
+.pause-btn { margin-left: auto; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 4px 12px; font-size: 11px; color: var(--text-dim); cursor: pointer; font-family: 'Courier New', monospace; transition: border-color 0.15s, color 0.15s, background 0.15s; flex-shrink: 0; }
+.pause-btn:hover { border-color: var(--accent); color: var(--text); }
+.pause-btn--paused { border-color: var(--accent); color: var(--accent); background: rgba(88, 166, 255, 0.08); }
+#pause-overlay { position: absolute; inset: 0; background: rgba(13, 17, 23, 0.55); display: flex; align-items: flex-start; justify-content: center; padding-top: 24px; pointer-events: none; z-index: 50; }
+.pause-badge { background: var(--bg-card); border: 1px solid var(--accent); border-radius: var(--radius-md); padding: 6px 18px; font-size: 11px; color: var(--accent); letter-spacing: 1px; }
 
 .game-layout { flex: 1; display: grid; grid-template-columns: var(--panel-queue-w) 1fr var(--panel-info-w); overflow: hidden; }
 .game-layout.no-queue { grid-template-columns: 0 1fr var(--panel-info-w); }

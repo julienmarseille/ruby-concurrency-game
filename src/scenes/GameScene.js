@@ -12,6 +12,9 @@ import { InfoPanel }    from '../panels/InfoPanel.js';
 import { StatsHeader }  from '../panels/StatsHeader.js';
 
 export class GameScene {
+  _paused    = false;
+  _frozenNow = null;
+
   constructor(threadsApp, monitorApp) {
     this._threadsApp = threadsApp;
 
@@ -48,6 +51,14 @@ export class GameScene {
     while (this.gs.queue.length < 7) this.gs.spawnRequest();
 
     threadsApp.ticker.add(() => this._update());
+
+    document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault();
+        this.togglePause();
+      }
+    });
   }
 
   _bindEvents() {
@@ -62,7 +73,38 @@ export class GameScene {
       .on(EVENTS.THREADS_REDISTRIBUTED, n                 => InfoPanel.flash(`Threads redistributed across ${n} processes`));
   }
 
+  togglePause() {
+    this._paused = !this._paused;
+    if (this._paused) {
+      this._frozenNow = performance.now();
+    } else {
+      const offset = performance.now() - this._frozenNow;
+      this._shiftTimestamps(offset);
+      this._frozenNow = null;
+    }
+    const btn = document.getElementById('pause-btn');
+    btn.textContent = this._paused ? '▶ Resume' : '⏸ Pause';
+    btn.classList.toggle('pause-btn--paused', this._paused);
+    document.getElementById('pause-overlay').style.display = this._paused ? 'flex' : 'none';
+  }
+
+  _shiftTimestamps(offset) {
+    for (const t of this.gs.threads) {
+      if (t.pendingUntil > 0)       t.pendingUntil  += offset;
+      if (t.phaseRunWall !== null)   t.phaseRunWall  += offset;
+      for (const f of t.extraFibers) {
+        if (f.phaseRunWall !== null) f.phaseRunWall  += offset;
+      }
+    }
+    this._threads.shiftTimestamps(offset);
+  }
+
   _update() {
+    if (this._paused) {
+      this._threads.update(this.gs.threads, 0, this._frozenNow);
+      return;
+    }
+
     const deltaMS = this._threadsApp.ticker.deltaMS;
 
     this._timer.update(deltaMS, {

@@ -71,11 +71,15 @@ export class ThreadsSection {
     this._pipes.spawnParticle(fromPos, card, req.def?.color ?? 0x4299e1);
   }
 
-  update(threads, deltaMS) {
-    const now = performance.now();
+  update(threads, deltaMS, frozenNow = null) {
+    const now = frozenNow ?? performance.now();
     for (const card of this._cards) card.update(now);
     for (const { header } of this._headers) header.update(threads, this._processMonitorEnabled);
     this._pipes.draw(deltaMS);
+  }
+
+  shiftTimestamps(offset) {
+    for (const card of this._cards) card.shiftTimestamps(offset);
   }
 
   enableProcessMonitor() {
