@@ -15,7 +15,7 @@
   --req-cpu:   #d29922;
 
   --panel-queue-w: 180px;
-  --panel-info-w:  360px;
+  --panel-info-w:  400px;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -73,25 +73,37 @@ header#hdr { background: var(--bg-card); border-bottom: 1px solid var(--border);
 
 .tree-node {
   position: absolute;
-  width: 34px; height: 34px;
+  width: 38px; height: 38px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; padding: 3px 2px;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
   z-index: 1;
+  --cat-color: var(--border);
+  --cat-glow: transparent;
 }
-.tree-node:hover { border-color: var(--accent); background: #1c2b3a; z-index: 10; }
-.tree-node-icon { font-size: 16px; line-height: 1; pointer-events: none; }
-.tree-node-badge { position: absolute; top: 2px; right: 4px; font-size: 9px; color: var(--green); pointer-events: none; }
+.tree-node[data-cat="infra"]     { --cat-color: #94a3b8; --cat-glow: #94a3b828; }
+.tree-node[data-cat="core"]      { --cat-color: #58a6ff; --cat-glow: #58a6ff28; }
+.tree-node[data-cat="obs"]       { --cat-color: #a78bfa; --cat-glow: #a78bfa28; }
+.tree-node[data-cat="traffic"]   { --cat-color: #f59e0b; --cat-glow: #f59e0b28; }
+.tree-node[data-cat="runtime"]   { --cat-color: #34d399; --cat-glow: #34d39928; }
+.tree-node[data-cat="scaling"]   { --cat-color: #60a5fa; --cat-glow: #60a5fa28; }
+.tree-node[data-cat="marketing"] { --cat-color: #fb923c; --cat-glow: #fb923c28; }
 
-.tree-node--owned { opacity: 0.5; cursor: default; border-color: #1f4a2e; }
-.tree-node--owned:hover { border-color: #2a6b3e; background: var(--bg-card); }
-.tree-node--locked { opacity: 0.25; cursor: default; }
+.tree-node:hover { border-color: var(--cat-color); background: #1c2b3a; z-index: 10; }
+.tree-node-icon { font-size: 13px; line-height: 1; pointer-events: none; }
+.tree-node-name { font-size: 6.5px; color: var(--text-dim); text-align: center; line-height: 1.1; pointer-events: none; max-width: 36px; }
+.tree-node-badge { position: absolute; top: 2px; right: 3px; font-size: 8px; color: var(--green); pointer-events: none; }
+
+.tree-node--owned { opacity: 0.45; cursor: default; border-color: #1f3a28; }
+.tree-node--owned:hover { border-color: #2a5235; background: var(--bg-card); }
+.tree-node--locked { opacity: 0.2; cursor: default; }
 .tree-node--locked:hover { border-color: var(--border); background: var(--bg-card); }
-.tree-node--affordable { border-color: #2d4a6b; box-shadow: 0 0 12px #58a6ff28; }
-.tree-node--affordable:hover { border-color: var(--accent); box-shadow: 0 0 16px #58a6ff44; }
+.tree-node--affordable { border-color: var(--cat-color); box-shadow: 0 0 10px var(--cat-glow); }
+.tree-node--affordable:hover { box-shadow: 0 0 18px var(--cat-glow); }
 
 .tree-tooltip {
   display: none;

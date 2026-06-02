@@ -1,6 +1,10 @@
 import { Graphics, Container } from 'pixi.js';
 import { C, LAYERS, PIPE_ENTRY_Y, PIPE_TRAVEL_MS } from '../config.js';
 
+const PARTICLE_GLOW_R  = 7.5;
+const PARTICLE_CORE_R  = 4.5;
+const PARTICLE_INNER_R = 1.8;
+
 export class PipeSystem {
   constructor(trunkX, entryY = PIPE_ENTRY_Y) {
     this._trunkX    = trunkX;
@@ -36,9 +40,9 @@ export class PipeSystem {
       const pos   = this._pathPoint(p, eased);
 
       p.dot.clear();
-      p.dot.circle(pos.x, pos.y, 7.5).fill({ color: p.color, alpha: 0.2 });
-      p.dot.circle(pos.x, pos.y, 4.5).fill({ color: p.color });
-      p.dot.circle(pos.x, pos.y, 1.8).fill({ color: 0xffffff });
+      p.dot.circle(pos.x, pos.y, PARTICLE_GLOW_R).fill({ color: p.color, alpha: 0.2 });
+      p.dot.circle(pos.x, pos.y, PARTICLE_CORE_R).fill({ color: p.color });
+      p.dot.circle(pos.x, pos.y, PARTICLE_INNER_R).fill({ color: 0xffffff });
 
       if (rawT >= 1) { p.dot.destroy(); return false; }
       return true;

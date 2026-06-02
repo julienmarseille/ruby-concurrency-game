@@ -107,6 +107,7 @@ export class GameScene {
     const { effects } = UPGRADES[id] ?? {};
     if (effects) {
       if (effects.flash)                InfoPanel.flash(effects.flash);
+      if (effects.setMem)               this.gs.memMax = effects.setMem;
       if (effects.monitorUnlock)        this._monitor.unlock(id);
       if (effects.showQueue)            this._applyQueueVisibility();
       if (effects.enableProcessMonitor) this._threads.enableProcessMonitor();
@@ -144,7 +145,10 @@ export class GameScene {
       return;
     }
     if (!this.gs.addProcess()) {
-      InfoPanel.flash(this.gs.money < PROCESS_COST ? 'Not enough money!' : 'Not enough RAM!');
+      const msg = this.gs.money < PROCESS_COST          ? 'Not enough money!'
+                : this.gs.processes.length >= this.gs.coreCount ? 'Not enough vCPU — upgrade your VPS!'
+                : 'Not enough RAM!';
+      InfoPanel.flash(msg);
       return;
     }
   }

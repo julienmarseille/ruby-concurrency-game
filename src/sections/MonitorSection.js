@@ -1,8 +1,8 @@
-import { TraceGraph }      from '../objects/TraceGraph.js';
-import { ThroughputGraph } from '../objects/ThroughputGraph.js';
-import { MemoryMeter }     from '../objects/MemoryMeter.js';
-import { ProcessGraph }    from '../objects/ProcessGraph.js';
-import { MEM_Y, MEM_DISPLAY_MAX, SPACING, MONITOR_MIN_H } from '../config.js';
+import { TraceGraph }                        from '../objects/TraceGraph.js';
+import { ThroughputGraph }                   from '../objects/ThroughputGraph.js';
+import { MemoryMeter, MEM_METER_BREAKDOWN_H } from '../objects/MemoryMeter.js';
+import { ProcessGraph }                       from '../objects/ProcessGraph.js';
+import { MEM_Y, SPACING, MONITOR_MIN_H }     from '../config.js';
 
 const TRACE_PADDING_TOP = SPACING.xl;
 const GRAPH_GAP         = SPACING.lg;
@@ -17,6 +17,8 @@ export class MonitorSection {
     this._areaEl = document.getElementById('monitor-area');
     this._wrapEl = document.getElementById('monitor-canvas-wrap');
 
+    this._hasMemoryMeter    = false;
+    this._hasMemoryProfiler = false;
     this._hasMonitoring     = false;
     this._hasThroughput     = false;
     this._hasProcessMonitor = false;
@@ -56,9 +58,18 @@ export class MonitorSection {
   }
 
   update(gs) {
+    if (this._hasMemoryMeter) {
+      this._memMeter.draw(
+        MEM_Y,
+        this._app.screen.width,
+        gs.memPct,
+        Math.round(gs.memUsed),
+        gs.memMax,
+        this._hasMemoryProfiler ? gs.memBreakdown : null,
+      );
+    }
     if (this._hasMonitoring) {
       this._trace.draw(gs.threads);
-      this._memMeter.draw(MEM_Y, this._app.screen.width, gs.memPct, gs.memUsed, MEM_DISPLAY_MAX);
     }
     if (this._hasThroughput) {
       this._throughputGraph.draw(gs.throughputWindow, gs.overviewWindow);
@@ -69,10 +80,17 @@ export class MonitorSection {
   }
 
   unlock(upgradeId) {
+    if (upgradeId === 'memory_meter') {
+      this._hasMemoryMeter = true;
+      this._memMeter.setVisible(true);
+    }
+    if (upgradeId === 'memory_profiler') {
+      this._hasMemoryProfiler = true;
+      this._memMeter.setProfilerEnabled(true);
+    }
     if (upgradeId === 'monitoring') {
       this._hasMonitoring = true;
       this._trace.setVisible(true);
-      this._memMeter.setVisible(true);
     }
     if (upgradeId === 'throughput_graph') {
       this._hasThroughput = true;
@@ -111,8 +129,13 @@ export class MonitorSection {
 
   get wrapEl() { return this._wrapEl; }
 
+  // Extra vertical space consumed by the memory breakdown (0 when profiler not active).
+  get _memBreakdownExtraH() {
+    return this._hasMemoryProfiler ? MEM_METER_BREAKDOWN_H : 0;
+  }
+
   _refreshHeight() {
-    let h = 0;
+    let h = this._memBreakdownExtraH;
     if (this._hasMonitoring)     h += TRACE_PADDING_TOP;
     if (this._hasThroughput)     h += GRAPH_GAP + this._throughputGraph.totalHeight;
     if (this._hasProcessMonitor && this._processGraph) h += SECTION_GAP + this._processGraph.totalHeight;
@@ -123,7 +146,7 @@ export class MonitorSection {
 
   _layout() {
     const MW = this._app.screen.width;
-    let y = MEM_Y;
+    let y = MEM_Y + this._memBreakdownExtraH;
 
     if (this._hasMonitoring) {
       y += TRACE_PADDING_TOP;

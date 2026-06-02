@@ -1,8 +1,8 @@
 import { Graphics, Text, Container } from 'pixi.js';
-import { C, LAYERS, PAD, TEXT_STYLES, TRACE_TICKS, TRACE_SAMPLE_EVERY, GRAPH_LABEL_W, TRACE_ROW_H } from '../config.js';
+import { C, LAYERS, PAD, TEXT_STYLES, TRACE_TICKS, TRACE_SAMPLE_EVERY, TRACE_LABEL_W, TRACE_ROW_H } from '../config.js';
 
 const COLORS  = { cpu: C.cpu, io: C.io, gvl_wait: C.gvlWait, idle: C.idle };
-const LABEL_W = GRAPH_LABEL_W;
+const LABEL_W = TRACE_LABEL_W;
 const ROW_H   = TRACE_ROW_H;
 
 const LEGEND_ITEMS = [

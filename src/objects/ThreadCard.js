@@ -19,11 +19,11 @@ const FIXED_CARD_H    = CARD_H + ACTIVE_ZONE_H + DIVIDER_ROW_H + READY_ZONE_H; /
 const TRANSITION_MS   = 250;
 
 const STATUS_COLORS = {
-  idle:       { border: C.border,  badge: C.surface,  text: CH.textDim,      label: 'idle'     },
-  fiber_host: { border: C.border,  badge: C.surface,  text: CH.textDim,      label: 'fibers'   },
-  cpu:        { border: C.cpu,     badge: 0x3a2800,   text: CH.cpu,          label: 'CPU'      },
-  io:         { border: C.io,      badge: 0x0a2540,   text: CH.io,           label: 'I/O'      },
-  gvl_wait:   { border: C.gvlWait, badge: 0x1e1040,   text: CH.gvlWaitLight, label: 'GVL wait' },
+  idle:       { border: C.border,  badge: C.surface,       text: CH.textDim,      label: 'idle'     },
+  fiber_host: { border: C.border,  badge: C.surface,       text: CH.textDim,      label: 'fibers'   },
+  cpu:        { border: C.cpu,     badge: C.cardCpuBadge,  text: CH.cpu,          label: 'CPU'      },
+  io:         { border: C.io,      badge: C.cardIoBadge,   text: CH.io,           label: 'I/O'      },
+  gvl_wait:   { border: C.gvlWait, badge: C.cardGvlBadge,  text: CH.gvlWaitLight, label: 'GVL wait' },
 };
 
 const FIBER_STATUS_COLORS = {

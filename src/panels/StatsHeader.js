@@ -1,4 +1,4 @@
-import { CH } from '../config.js';
+import { CH, GVL_ALERT, GVL_WARNING } from '../config.js';
 
 export class StatsHeader {
   constructor() {
@@ -22,16 +22,16 @@ export class StatsHeader {
       if (this._gvlLabelEl) this._gvlLabelEl.textContent = fibersEnabled ? 'CPU wait' : 'GVL wait';
       const pct = gs.gvlWaitPct;
       this._gvlEl.textContent = gs.totalActiveTicks ? pct + '% (1min avg)' : '—';
-      this._gvlEl.style.color = pct > 60 ? CH.danger : pct > 30 ? CH.cpu : '#9371e6';
+      this._gvlEl.style.color = pct > GVL_ALERT ? CH.danger : pct > GVL_WARNING ? CH.cpu : CH.gvlNormal;
     }
 
-    this._rpsStatEl.style.display = gs.hasUpgrade('throughput_graph') ? '' : 'none';
+    if (this._rpsStatEl) this._rpsStatEl.style.display = gs.hasUpgrade('throughput_graph') ? '' : 'none';
     if (gs.hasUpgrade('throughput_graph')) {
       const done = gs.completionsPerMin;
       this._rpsEl.textContent = done > 0 ? done : '—';
     }
 
-    this._incomingStatEl.style.display = gs.hasUpgrade('request_tracing') ? '' : 'none';
+    if (this._incomingStatEl) this._incomingStatEl.style.display = gs.hasUpgrade('request_tracing') ? '' : 'none';
     if (gs.hasUpgrade('request_tracing')) {
       this._incomingEl.textContent = gs.spawnsPerMin;
     }

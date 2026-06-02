@@ -34,7 +34,7 @@ export class DualPanelGraph {
     this._meta.destroy({ children: true });
   }
 
-  _panelWidth() { return Math.floor((this._width - PAD - GAP) / 2); }
+  _panelWidth() { return Math.floor((this._width - 2 * PAD - GAP) / 2); }
 
   _createLabel(text) {
     const t = new Text({ text, style: TEXT_STYLES.body });

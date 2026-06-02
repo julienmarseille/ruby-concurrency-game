@@ -29,8 +29,8 @@ export class ThroughputGraph extends DualPanelGraph {
     const pW  = this._panelWidth();
     gfx.clear();
 
-    this._drawPanel(gfx, 0,        pW, recentData,   this._yMaxRecent,   TRACE_TICKS,    this._yLabelsRecent);
-    this._drawPanel(gfx, pW + GAP, pW, overviewData, this._yMaxOverview, OVERVIEW_TICKS, this._yLabelsOverview);
+    this._drawPanel(gfx, PAD,            pW, recentData,   this._yMaxRecent,   TRACE_TICKS,    this._yLabelsRecent);
+    this._drawPanel(gfx, PAD + pW + GAP, pW, overviewData, this._yMaxOverview, OVERVIEW_TICKS, this._yLabelsOverview);
   }
 
   _drawPanel(gfx, x0, pW, data, yMax, totalTicks, yLabels) {

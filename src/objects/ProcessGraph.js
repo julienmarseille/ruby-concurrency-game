@@ -51,8 +51,8 @@ export class ProcessGraph extends DualPanelGraph {
     const gfx = this._gfx;
     const pW  = this._panelWidth();
     gfx.clear();
-    this._drawPanel(gfx, 0,        pW, recentData,   TRACE_TICKS,    this._yLabelsRecent);
-    this._drawPanel(gfx, pW + GAP, pW, overviewData, OVERVIEW_TICKS, this._yLabelsOverview);
+    this._drawPanel(gfx, PAD,            pW, recentData,   TRACE_TICKS,    this._yLabelsRecent);
+    this._drawPanel(gfx, PAD + pW + GAP, pW, overviewData, OVERVIEW_TICKS, this._yLabelsOverview);
   }
 
   _drawPanel(gfx, x0, pW, data, totalTicks, yLabels) {

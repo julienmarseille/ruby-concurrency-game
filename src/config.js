@@ -4,13 +4,16 @@ export const SPAWN_MS         = 1000;
 export const STATS_MS         = 1000;
 export const PIPE_TRAVEL_MS   = 150;
 export const MEM_BASE         = 200;
-export const MEM_MAX          = 3072;
-export const THREAD_MEM       = 50;
-export const PROCESS_MEM      = 100;
+export const MEM_NANO         = 512;
+export const MEM_SMALL        = 1024;
+export const MEM_MEDIUM       = 2048;
+export const MEM_LARGE        = 4096;
+export const THREAD_MEM       = 18;
+export const PROCESS_MEM      = 50;
 export const THREAD_COST      = 100;
 export const PROCESS_COST     = 150;
 export const BASE_SPAWN_RATE  = 1;
-export const FIBER_MEM        = 25;
+export const FIBER_MEM        = 0.5;
 export const MAX_THREADS      = 12;
 
 // ─── Layout (shared by JS modules) ───────────────────────────────────────────
@@ -18,7 +21,6 @@ export const PAD              = 14;
 export const PIPE_W           = 48;
 export const PIPE_ENTRY_Y     = 20;
 export const MEM_Y            = 20;
-export const MEM_DISPLAY_MAX  = MEM_MAX;
 export const MONITOR_MIN_H    = 150;
 
 // ─── Spacing scale (8px base) ────────────────────────────────────────────────
@@ -34,7 +36,8 @@ export const SPACING = {
 // ─── Graph dimensions (shared by TraceGraph + ThroughputGraph) ───────────────
 export const TRACE_TICKS        = 300;
 export const TRACE_SAMPLE_EVERY = 4;
-export const GRAPH_LABEL_W      = 72;
+export const GRAPH_LABEL_W      = 36;
+export const TRACE_LABEL_W      = 64;
 export const TRACE_ROW_H        = 22;
 export const THROUGHPUT_H       = 88;
 export const PROCESS_GRAPH_H    = 128;
@@ -60,24 +63,28 @@ export const LAYERS = {
 // CH = HTML/CSS hex strings ('#rrggbb')
 // CSS :root vars in style.css mirror these values.
 const PALETTE = {
-  bg:           '#0d1117',
-  card:         '#161b22',
-  cardCpu:      '#1a1300',
-  cardIo:       '#0a1929',
-  cardWait:     '#140d2a',
-  border:       '#30363d',
-  surface:      '#21262d',
-  pipe:         '#2d333b',
-  accent:       '#58a6ff',
-  cpu:          '#d29922',
-  io:           '#4299e1',
-  gvlWait:      '#6e40c9',
-  gvlWaitLight: '#8957e5',
-  idle:         '#1c2128',
-  green:        '#3fb950',
-  text:         '#e6edf3',
-  textDim:      '#8b949e',
-  danger:       '#f85149',
+  bg:             '#0d1117',
+  card:           '#161b22',
+  cardCpu:        '#1a1300',
+  cardIo:         '#0a1929',
+  cardWait:       '#140d2a',
+  cardCpuBadge:   '#3a2800',
+  cardIoBadge:    '#0a2540',
+  cardGvlBadge:   '#1e1040',
+  border:         '#30363d',
+  surface:        '#21262d',
+  pipe:           '#2d333b',
+  accent:         '#58a6ff',
+  cpu:            '#d29922',
+  io:             '#4299e1',
+  gvlWait:        '#6e40c9',
+  gvlWaitLight:   '#8957e5',
+  gvlNormal:      '#9371e6',
+  idle:           '#1c2128',
+  green:          '#3fb950',
+  text:           '#e6edf3',
+  textDim:        '#8b949e',
+  danger:         '#f85149',
 };
 
 export const C  = Object.fromEntries(
@@ -93,6 +100,10 @@ export const TEXT_STYLES = {
   threadName: { fontFamily: 'Courier New', fontSize: 11, fill: CH.textDim },
   section:    { fontFamily: 'Courier New', fontSize: 13, fill: CH.text, fontWeight: 'bold' },
 };
+
+// ─── GVL thresholds ───────────────────────────────────────────────────────────
+export const GVL_ALERT   = 60;
+export const GVL_WARNING = 30;
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 export const EVENTS = {
@@ -115,6 +126,7 @@ export const REQ_TYPES = {
     emoji: '🔵',
     color: 0x4299e1,
     colorStr: '#4299e1',
+    memMB: 20,
     phases: [
       { type: 'cpu', ms: 800,  label: 'Route & parse'  },
       { type: 'io',  ms: 4800, label: 'SELECT query'   },
@@ -130,6 +142,7 @@ export const REQ_TYPES = {
     emoji: '🔷',
     color: 0x29b6f6,
     colorStr: '#29b6f6',
+    memMB: 25,
     phases: [
       { type: 'cpu', ms: 200,  label: 'Auth & route'      },
       { type: 'io',  ms: 4800, label: 'SELECT query'      },
@@ -145,6 +158,7 @@ export const REQ_TYPES = {
     emoji: '💠',
     color: 0x26c6da,
     colorStr: '#26c6da',
+    memMB: 30,
     phases: [
       { type: 'cpu', ms: 400,  label: 'Parse query'    },
       { type: 'io',  ms: 1600, label: 'Index lookup'   },
@@ -164,6 +178,7 @@ export const REQ_TYPES = {
     emoji: '🟡',
     color: 0xe8a838,
     colorStr: '#e8a838',
+    memMB: 35,
     phases: [
       { type: 'cpu', ms: 1000, label: 'Parse params'   },
       { type: 'io',  ms: 2000, label: 'Auth check'     },
@@ -181,6 +196,7 @@ export const REQ_TYPES = {
     emoji: '🔴',
     color: 0xfc8181,
     colorStr: '#fc8181',
+    memMB: 70,
     phases: [
       { type: 'cpu', ms: 2000, label: 'Validate input'  },
       { type: 'io',  ms: 400,  label: 'Fetch records'   },

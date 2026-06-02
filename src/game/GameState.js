@@ -1,5 +1,7 @@
-import { TICK_MS, MEM_BASE, MEM_MAX, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, BASE_SPAWN_RATE, FIBER_MEM, EVENTS } from '../config.js';
-import { UPGRADES }                from '../UpgradeConfig.js';
+import { TICK_MS, MEM_BASE, MEM_NANO, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, BASE_SPAWN_RATE, FIBER_MEM, EVENTS } from '../config.js';
+import { UPGRADES } from '../UpgradeConfig.js';
+
+const VPS_TIERS = ['large_vps', 'medium_vps', 'small_vps', 'nano_vps'];
 import { MetricsComputer }         from './MetricsComputer.js';
 import { ProcessMetricsComputer }  from './ProcessMetricsComputer.js';
 import { GVLScheduler }            from './GVLScheduler.js';
@@ -28,6 +30,7 @@ export class GameState {
     this.recentDone = [];
     this.processes  = [];
     this.upgrades   = new Set();
+    this.memMax     = MEM_NANO;
   }
 
   hasUpgrade(id) { return this.upgrades.has(id); }
@@ -53,10 +56,18 @@ export class GameState {
     return true;
   }
 
+  get coreCount() {
+    for (const id of VPS_TIERS) {
+      if (this.upgrades.has(id)) return UPGRADES[id].cores;
+    }
+    return 0;
+  }
+
   addProcess() {
     if (this.processes.length >= 4) return false;
+    if (this.processes.length >= this.coreCount) return false;
     if (this.money < PROCESS_COST) return false;
-    if (this.memUsed + PROCESS_MEM > MEM_MAX) return false;
+    if (this.memUsed + PROCESS_MEM > this.memMax) return false;
     this.money -= PROCESS_COST;
     const proc = { id: ++this._nextProcessId, gvlHolder: null };
     this.processes.push(proc);
@@ -66,7 +77,7 @@ export class GameState {
   }
 
   addThread(free = false, processId = null) {
-    if (this.memUsed + THREAD_MEM > MEM_MAX) return false;
+    if (this.memUsed + THREAD_MEM > this.memMax) return false;
     if (!free && this.money < THREAD_COST) return false;
     if (!free) this.money -= THREAD_COST;
 
@@ -131,10 +142,35 @@ export class GameState {
   get totalActiveTicks() { return this._metrics.hasData; }
   get threadCost()       { return this.threads.length === 0 ? 0 : THREAD_COST; }
   get threadName()       { return this.threads.length === 0 ? '🚀 Start your server' : '➕ Add Thread'; }
-  get activeFiberCount() { return this.threads.reduce((sum, t) => sum + t.extraFibers.length, 0); }
-  get memUsed()          { return MEM_BASE + Math.max(0, this.processes.length - 1) * PROCESS_MEM + this.threads.length * THREAD_MEM + this.activeFiberCount * FIBER_MEM; }
-  get memPct()           { return this.memUsed / MEM_MAX; }
-  get canAddThread()     { return this.memUsed + THREAD_MEM <= MEM_MAX; }
+  // All fibers with their stack allocated (created but not yet started or actively running).
+  get activeFiberCount()  { return this.threads.reduce((sum, t) => sum + t.extraFibers.length, 0); }
+
+  // Fibers that have actually started executing (phaseIdx > 0 or elapsed > 0).
+  // Request working-set memory (AR records, response buffer) only accumulates once code runs.
+  get startedFiberCount() {
+    return this.threads.reduce((sum, t) =>
+      sum + t.extraFibers.filter(f => f.phaseIdx > 0 || f.phaseElapsed > 0).length, 0);
+  }
+
+  get activeRequestMem()  {
+    if (this._fibersEnabled) {
+      return this.threads.flatMap(t => t.extraFibers)
+        .filter(f => f.phaseIdx > 0 || f.phaseElapsed > 0)
+        .reduce((sum, f) => sum + (f.request?.def?.memMB ?? 0), 0);
+    }
+    return this.threads
+      .filter(t => t.request != null)
+      .reduce((sum, t) => sum + (t.request?.def?.memMB ?? 0), 0);
+  }
+  get memUsed()           {
+    const infra = MEM_BASE
+      + Math.max(0, this.processes.length - 1) * PROCESS_MEM
+      + this.threads.length * THREAD_MEM
+      + this.activeFiberCount * FIBER_MEM;
+    return infra + this.activeRequestMem;
+  }
+  get memPct()            { return this.memUsed / this.memMax; }
+  get canAddThread()      { return this.memUsed + THREAD_MEM <= this.memMax; }
   get processMetrics()   { return this._processMetrics; }
 
   _assignRequests(now) {
@@ -145,7 +181,10 @@ export class GameState {
 
     for (const t of this.threads) {
       if (t.status === 'idle' && this.queue.length > 0) {
-        const req      = this.queue.shift();
+        const req    = this.queue[0];
+        const reqMem = req?.def?.memMB ?? 20;
+        if (this.memUsed + reqMem > this.memMax) break;
+        this.queue.shift();
         t.request      = req;
         t.phaseIdx     = 0;
         t.phaseElapsed = 0;
@@ -159,7 +198,10 @@ export class GameState {
 
   _assignFibers(now) {
     if (this.threads.length === 0) return;
-    while (this.queue.length > 0 && this.memUsed + FIBER_MEM <= MEM_MAX) {
+    while (this.queue.length > 0) {
+      const nextReq = this.queue[0];
+      const reqMem  = nextReq?.def?.memMB ?? 20;
+      if (this.memUsed + reqMem > this.memMax) break;
       // Least-loaded thread gets the next request (simulates OS distributing connections)
       const t   = this.threads.reduce((min, th) =>
         th.extraFibers.length < min.extraFibers.length ? th : min
@@ -298,6 +340,24 @@ export class GameState {
 
   get fibersEnabled() { return this._fibersEnabled; }
 
+  get memBreakdown() {
+    const allFibers     = this._fibersEnabled ? this.activeFiberCount : 0;
+    const startedFibers = this._fibersEnabled ? this.startedFiberCount : 0;
+    return {
+      base:          MEM_BASE - PROCESS_MEM,
+      threadCount:   this.threads.length,
+      threadsMb:     this.threads.length * THREAD_MEM,
+      processCount:  this.processes.length,
+      processesMb:   this.processes.length * PROCESS_MEM,
+      requestsMb:    Math.round(this.activeRequestMem),
+      fibersEnabled: this._fibersEnabled,
+      fiberCount:    allFibers,
+      fibersMb:      Math.round(allFibers * FIBER_MEM),
+      fiberActiveCount: startedFibers,
+      available:     Math.round(this.memMax - this.memUsed),
+    };
+  }
+
   // Determine which fiber holds the cooperative CPU slot for this thread.
   // IO-resumed fibers (just finished IO, now need CPU) get priority — mirroring
   // Falcon's fiber.transfer() which resumes IO-completed fibers inline before
@@ -368,7 +428,7 @@ export class GameState {
     const req  = fiber.request;
     const proc = this.processes.find(p => p.id === t.processId);
     this._recordCompletion(req, proc, fiber.id);
-    fiber.request = null;
+    t.extraFibers = t.extraFibers.filter(f => f.id !== fiber.id);
     this._events.emit(EVENTS.REQUEST_COMPLETED, req);
   }
 

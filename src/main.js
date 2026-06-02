@@ -1,4 +1,5 @@
 import { Application } from 'pixi.js';
+import { C } from './config.js';
 import { GameScene } from './scenes/GameScene.js';
 
 (async () => {
@@ -8,11 +9,11 @@ import { GameScene } from './scenes/GameScene.js';
   const dpr = window.devicePixelRatio || 1;
 
   const threadsApp = new Application();
-  await threadsApp.init({ background: 0x0d1117, antialias: true, resolution: dpr, autoDensity: true });
+  await threadsApp.init({ background: C.bg, antialias: true, resolution: dpr, autoDensity: true });
   threadsInner.appendChild(threadsApp.canvas);
 
   const monitorApp = new Application();
-  await monitorApp.init({ background: 0x0d1117, resizeTo: monitorWrap, antialias: true, resolution: dpr, autoDensity: true });
+  await monitorApp.init({ background: C.bg, resizeTo: monitorWrap, antialias: true, resolution: dpr, autoDensity: true });
   monitorWrap.appendChild(monitorApp.canvas);
 
   new GameScene(threadsApp, monitorApp);
