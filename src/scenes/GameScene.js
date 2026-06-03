@@ -100,20 +100,17 @@ export class GameScene {
   }
 
   _update() {
-    if (this._paused) {
-      this._threads.update(this.gs.threads, 0, this._frozenNow);
-      return;
-    }
-
     const deltaMS = this._threadsApp.ticker.deltaMS;
 
-    this._timer.update(deltaMS, {
-      onTick:         () => { this.gs.step(); this._monitor.sampleTrace(this.gs.threads); },
-      onSpawn:        () => this.gs.autoSpawnRequests(),
-      onStatsRefresh: () => this._header.update(this.gs),
-    });
+    if (!this._paused) {
+      this._timer.update(deltaMS, {
+        onTick:         () => { this.gs.step(); this._monitor.sampleTrace(this.gs.threads); },
+        onSpawn:        () => this.gs.autoSpawnRequests(),
+        onStatsRefresh: () => this._header.update(this.gs),
+      });
+    }
 
-    this._threads.update(this.gs.threads, deltaMS);
+    this._threads.update(this.gs.threads, this._paused ? 0 : deltaMS, this._paused ? this._frozenNow : null);
     this._monitor.update(this.gs);
     this._queue.update(this.gs.queue);
   }
