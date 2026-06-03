@@ -2,19 +2,56 @@
 
 ## Progression des paliers
 
-| Palier     | Upgrade         | Enseigne                              | Statut    |
-|------------|-----------------|---------------------------------------|-----------|
-| 1 (actuel) | Threads         | GVL contention                        | ✅ Fait   |
-| 2          | Background Jobs | Sortir le CPU du thread web           | À faire   |
-| 3          | Processes       | Vrai parallélisme, coût mémoire       | À faire   |
-| 3.5        | Memory          | La mémoire est une ressource à gérer  | À faire   |
-| 4          | N+1 Detection   | Identifier les requêtes cachées       | À faire   |
-| 5          | Connection Pool | Saturation DB                         | À faire   |
-| 6          | Cache           | Éviter le travail répété              | À faire   |
-| 7          | Load Balancer   | Limites d'un seul serveur             | À faire   |
-| 8          | Fibers          | Légèreté vs coopération               | À faire   |
-| 9          | Ractor          | Isolation = overhead                  | À faire   |
-| ★          | JRuby           | Le GVL n'existe plus                  | À faire   |
+| Palier | Upgrade             | Enseigne                              | Statut              |
+|--------|---------------------|---------------------------------------|---------------------|
+| 1      | Threads             | GVL contention                        | ✅ Fait             |
+| 2      | Background Jobs     | Sortir le CPU du thread web           | ❌ À faire          |
+| 3      | Processes           | Vrai parallélisme, coût mémoire       | ✅ Fait             |
+| 3.5    | Memory              | La mémoire est une ressource à gérer  | 🔶 Partiel          |
+| 4      | N+1 Detection       | Identifier les requêtes cachées       | ❌ À faire          |
+| 5      | Connection Pool     | Saturation DB                         | ❌ À faire          |
+| 6      | Cache               | Éviter le travail répété              | ❌ À faire          |
+| 7      | Load Balancer       | Limites d'un seul serveur             | ❌ À faire          |
+| 8      | Fibers              | Légèreté vs coopération               | 🔶 Partiel          |
+| 9      | Ractor              | Isolation = overhead                  | ❌ À faire          |
+| ★      | JRuby               | Le GVL n'existe plus                  | ❌ À faire          |
+
+### Détail des statuts
+
+**Palier 1 ✅ Fait**
+- Threads avec GVL contention (idle / cpu / io / gvl_wait)
+- Types de requêtes : DB, Profile, Multi-query, Checkout, PDF Report
+- Monitoring : Request Tracing, Memory Meter, Monitoring (GVL%), Throughput Graph, Memory Profiler, Process Monitor
+- Traffic : Marketing campaigns I→V (1→18 req/s)
+- VPS upgrades nano→large (512MB→4GB, 1→8 vCPU)
+- Pause feature (Space / bouton)
+
+**Palier 3 ✅ Fait**
+- Multi-process avec ProcessHeader et groupes visuels
+- Contrainte vCPU : impossible d'acheter un process sans assez de cores
+- Coût mémoire par process (PROCESS_MEM = 50 MB)
+- GVL indépendant par process (pas de contention croisée)
+
+**Palier 3.5 🔶 Partiel — implémenté :**
+- Memory Meter avec barre lerp + breakdown détaillé (base / processes / threads / fibers / requests)
+- Memory Profiler upgrade ($80)
+
+**Palier 3.5 ❌ Manquant :**
+- GC pauses visibles (flash qui gèle les threads d'un process)
+- Memory Bloat progressif par process (croissance non-linéaire)
+- CoW indicator (mémoire partagée vs private)
+- Bouton "Restart Process" avec downtime
+- Upgrade GC Tuning ($100), jemalloc ($120), Process Recycling ($110)
+
+**Palier 8 🔶 Partiel — implémenté :**
+- Fiber Scheduler upgrade ($250)
+- Visualisation fiber dans ThreadCard : active fibers + ready queue animée
+- Scheduling coopératif visible (phases I/O vs CPU)
+- Memory breakdown fibers (FIBER_MEM = 0.5 MB/fiber)
+
+**Palier 8 ❌ Manquant :**
+- "Global Stall" flash quand une fiber CPU-block sans yield bloque toutes les lanes
+- Compteur de fibers actives visible sur la carte (actuellement limité à ACTIVE_MAX_ROWS=10)
 
 ---
 
