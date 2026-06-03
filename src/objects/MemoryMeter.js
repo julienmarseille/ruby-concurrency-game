@@ -33,6 +33,7 @@ function halfPanelW(width) {
 export class MemoryMeter {
   constructor() {
     this._bg    = new Graphics();
+    this._glow  = new Graphics();
     this._fill  = new Graphics();
     this._grid  = new Graphics();   // static grid — redrawn only on layout change
     this._label = new Text({ text: '', style: TEXT_STYLES.body });
@@ -65,6 +66,7 @@ export class MemoryMeter {
     this._lastTableWidth    = null;
 
     this._bg.zIndex    = LAYERS.MEMORY_METER;
+    this._glow.zIndex  = LAYERS.MEMORY_METER;
     this._fill.zIndex  = LAYERS.MEMORY_METER;
     this._grid.zIndex  = LAYERS.MEMORY_TEXT;
     this._label.zIndex = LAYERS.MEMORY_TEXT;
@@ -77,7 +79,7 @@ export class MemoryMeter {
   }
 
   addTo(parent) {
-    parent.addChild(this._bg, this._fill, this._grid, this._label, this._tableTitle);
+    parent.addChild(this._bg, this._glow, this._fill, this._grid, this._label, this._tableTitle);
     for (const t of [...this._col1, ...this._col2, ...this._col3]) parent.addChild(t);
   }
 
@@ -93,9 +95,18 @@ export class MemoryMeter {
     this._bg.rect(PAD, y, mW, BAR_H).fill({ color: C.surface });
 
     this._fill.clear();
-    const fc       = smoothPct > 0.8 ? C.danger : smoothPct > 0.6 ? C.cpu : C.green;
-    const pulse    = pct > OOM_WARN_PCT ? 0.5 + 0.5 * Math.abs(Math.sin(Date.now() / 250)) : 1;
-    this._fill.rect(PAD, y, Math.max(4, mW * smoothPct), BAR_H).fill({ color: fc, alpha: pulse });
+    this._glow.clear();
+    const fc    = smoothPct > 0.8 ? C.danger : smoothPct > 0.6 ? C.cpu : C.green;
+    const inDanger = pct > OOM_WARN_PCT;
+    const pulse = inDanger ? 0.5 + 0.5 * Math.abs(Math.sin(Date.now() / 250)) : 1;
+    const fillW = Math.max(4, mW * smoothPct);
+    this._fill.rect(PAD, y, fillW, BAR_H).fill({ color: fc, alpha: pulse });
+
+    if (inDanger) {
+      const haloAlpha = 0.2 + 0.2 * Math.abs(Math.sin(Date.now() / 250));
+      this._glow.rect(PAD - 3,  y - 3,  fillW + 6,  BAR_H + 6 ).fill({ color: C.danger, alpha: haloAlpha * 0.5 });
+      this._glow.rect(PAD - 7,  y - 7,  fillW + 14, BAR_H + 14).fill({ color: C.danger, alpha: haloAlpha * 0.15 });
+    }
 
     this._label.text = `Memory  ${smoothUsed} / ${memMax} MB`;
     this._label.x    = PAD;
@@ -248,6 +259,7 @@ export class MemoryMeter {
 
   setVisible(v) {
     this._bg.visible    = v;
+    this._glow.visible  = v;
     this._fill.visible  = v;
     this._label.visible = v;
     if (!v) this._hideTable();
@@ -255,6 +267,7 @@ export class MemoryMeter {
 
   destroy() {
     this._bg.destroy();
+    this._glow.destroy();
     this._fill.destroy();
     this._grid.destroy();
     this._label.destroy();

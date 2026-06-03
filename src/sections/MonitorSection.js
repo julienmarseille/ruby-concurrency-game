@@ -150,7 +150,8 @@ export class MonitorSection {
   // Compute the full content height the PixiJS scene needs.
   _contentHeight() {
     let h = this._memBreakdownExtraH;
-    if (this._hasMonitoring)     h += TRACE_PADDING_TOP;
+    const hasAnyGraph = this._hasMonitoring || this._hasThroughput || (this._hasProcessMonitor && this._processGraph);
+    if (hasAnyGraph)             h += TRACE_PADDING_TOP;
     if (this._hasThroughput)     h += GRAPH_GAP + this._throughputGraph.totalHeight;
     if (this._hasProcessMonitor && this._processGraph) h += SECTION_GAP + this._processGraph.totalHeight;
     if (this._hasMonitoring)     h += SECTION_GAP + Math.max(80, this._trace.totalHeight + 4);
@@ -177,9 +178,8 @@ export class MonitorSection {
     const MW = this._app.screen.width;
     let y = MEM_Y + this._memBreakdownExtraH;
 
-    if (this._hasMonitoring) {
-      y += TRACE_PADDING_TOP;
-    }
+    const hasAnyGraph = this._hasMonitoring || this._hasThroughput || (this._hasProcessMonitor && this._processGraph);
+    if (hasAnyGraph) y += TRACE_PADDING_TOP;
 
     if (this._hasThroughput) {
       y += GRAPH_GAP;
