@@ -26,6 +26,27 @@
     <!-- Center: threads + monitor -->
     <div id="game-container" style="position:relative">
       <div id="pause-overlay" style="display:none"><div class="pause-badge">⏸ PAUSED — press Space to resume</div></div>
+      <div id="oom-modal" style="display:none">
+        <div class="oom-modal-box">
+          <div class="oom-modal-icon">💥</div>
+          <div class="oom-modal-title">Out of Memory — Server Crashed</div>
+          <div class="oom-modal-body">
+            Your server ran out of RAM. All in-flight requests were dropped and the server is restarting.
+          </div>
+          <div class="oom-modal-section-title">What happened?</div>
+          <div class="oom-modal-body">
+            Each thread, process, and active request consumes memory. When total usage exceeds your RAM limit, Ruby's allocator fails and the process crashes — there's no graceful degradation.
+          </div>
+          <div class="oom-modal-section-title">Solutions</div>
+          <ul class="oom-modal-list">
+            <li>Upgrade your VPS to get more RAM</li>
+            <li>Remove threads or processes to lower baseline memory</li>
+            <li>Reduce traffic until in-flight requests finish before scaling</li>
+            <li>Use fibers — they cost ~0.5 MB each vs 18 MB per thread</li>
+          </ul>
+          <button id="oom-resume-btn" class="oom-modal-btn">Resume</button>
+        </div>
+      </div>
       <div id="threads-area"><div id="threads-inner"></div></div>
       <div id="monitor-area" style="display:none">
         <div id="monitor-resize-handle"><span>Monitoring</span></div>

@@ -29,6 +29,7 @@ export class GameScene {
       ()  => this._buyThread(),
       id  => this._buyUpgrade(id),
       id  => this._buyProcess(id),
+      id  => this._removeItem(id),
     );
 
     this._threads = new ThreadsSection(threadsApp);
@@ -38,8 +39,8 @@ export class GameScene {
       document.getElementById('monitor-resize-handle'),
       this._monitor.wrapEl,
       {
-        onStart:  () => this._threads.setDragging(true),
-        onEnd:    () => this._threads.setDragging(false),
+        onStart:  () => { this._threads.setDragging(true);  this._monitor.setDragging(true);  },
+        onEnd:    () => { this._threads.setDragging(false); this._monitor.setDragging(false); },
         onResize: h  => this._monitor.setHeight(h),
       },
     );
@@ -53,9 +54,11 @@ export class GameScene {
     threadsApp.ticker.add(() => this._update());
 
     document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
+    document.getElementById('oom-resume-btn').addEventListener('click', () => this._dismissOomModal());
     document.addEventListener('keydown', e => {
       if (e.code === 'Space' && e.target === document.body) {
         e.preventDefault();
+        if (document.getElementById('oom-modal').style.display !== 'none') return;
         this.togglePause();
       }
     });
@@ -70,7 +73,9 @@ export class GameScene {
       .on(EVENTS.REQUEST_ASSIGNED,      ({ thread, req, isFiber }) => this._onAssigned(thread, req, isFiber))
       .on(EVENTS.REQUEST_COMPLETED,     ()                => this._refreshShop())
       .on(EVENTS.UPGRADE_UNLOCKED,      id                => this._onUpgradeUnlocked(id))
-      .on(EVENTS.THREADS_REDISTRIBUTED, n                 => InfoPanel.flash(`Threads redistributed across ${n} processes`));
+      .on(EVENTS.THREADS_REDISTRIBUTED, n                 => InfoPanel.flash(`Threads redistributed across ${n} processes`))
+      .on(EVENTS.OOM_CRASH,             ()                => this._onOomCrash())
+      .on(EVENTS.PROCESS_REMOVED,       proc              => this._onProcessRemoved(proc));
   }
 
   togglePause() {
@@ -190,6 +195,29 @@ export class GameScene {
       InfoPanel.flash(msg);
       return;
     }
+  }
+
+  _onProcessRemoved(proc) {
+    this._threads.removeProcessHeader(proc.id);
+    this._threads.relayout();
+    this._refreshShop();
+  }
+
+  _removeItem(id) {
+    if (id.startsWith('thread_'))    this.gs.removeLastThread();
+    else if (id.startsWith('process_')) this.gs.removeLastProcess();
+    else if (id.startsWith('marketing_')) this.gs.removeUpgrade(id);
+    this._refreshShop();
+  }
+
+  _onOomCrash() {
+    if (!this._paused) this.togglePause();
+    document.getElementById('oom-modal').style.display = 'flex';
+  }
+
+  _dismissOomModal() {
+    document.getElementById('oom-modal').style.display = 'none';
+    if (this._paused) this.togglePause();
   }
 
   _refreshShop() {

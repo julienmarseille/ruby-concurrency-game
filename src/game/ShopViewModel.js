@@ -3,10 +3,11 @@ import { THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, MAX_THREADS } from 
 
 export class ShopViewModel {
   compute(gs) {
+    const highestMarketing = [5, 4, 3, 2, 1].find(n => gs.upgrades.has(`marketing_${n}`)) ?? 0;
     return [
       ...this._processNodes(gs),
       ...this._threadNodes(gs),
-      ...this._upgradeNodes(gs),
+      ...this._upgradeNodes(gs, highestMarketing),
     ];
   }
 
@@ -31,6 +32,7 @@ export class ShopViewModel {
         unlocked:   n === 1 ? gs.upgrades.has('nano_vps') : gs.processes.length >= n - 1,
         affordable: owned || isFree || (gs.money >= cost && ramOk && coresOk),
         moneyPct:   cost > 0 ? Math.min(1, gs.money / cost) : 1,
+        removable:  owned && n === gs.processes.length && n > 1,
       };
     });
   }
@@ -59,22 +61,26 @@ export class ShopViewModel {
         unlocked:   fiberMode ? unlockedFiber : unlockedNormal,
         affordable: owned || (gs.money >= THREAD_COST && ramOk),
         moneyPct:   Math.min(1, gs.money / THREAD_COST),
+        removable:  owned && n === gs.threads.length,
       };
     });
   }
 
-  _upgradeNodes(gs) {
+  _upgradeNodes(gs, highestMarketing) {
     const hasThread1 = gs.threads.length >= 1;
     return Object.values(UPGRADES).map(u => {
       const requiresMet = !u.requires || gs.upgrades.has(u.requires);
       const parentMet   = !u.requiresThread || hasThread1;
+      const owned       = gs.upgrades.has(u.id);
+      const marketingN  = u.id.startsWith('marketing_') ? parseInt(u.id.split('_')[1]) : 0;
       return {
         ...u,
         isThread:   false,
-        owned:      gs.upgrades.has(u.id),
+        owned,
         unlocked:   requiresMet && parentMet,
         affordable: gs.money >= u.cost,
         moneyPct:   Math.min(1, gs.money / u.cost),
+        removable:  owned && marketingN > 0 && marketingN === highestMarketing,
       };
     });
   }

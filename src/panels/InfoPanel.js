@@ -157,10 +157,11 @@ const marketingLastRow = 12;
 const TREE_H = 8 + Math.max(lastThreadRow, marketingLastRow) * STEP + NODE_W + 16;
 
 export class InfoPanel {
-  constructor(onBuyThread, onBuyUpgrade, onBuyProcess) {
+  constructor(onBuyThread, onBuyUpgrade, onBuyProcess, onRemove) {
     this._onBuyThread  = onBuyThread;
     this._onBuyUpgrade = onBuyUpgrade;
     this._onBuyProcess = onBuyProcess;
+    this._onRemove     = onRemove;
     this._shopEl       = document.getElementById('shop');
     this._shopKey      = null;
 
@@ -170,11 +171,12 @@ export class InfoPanel {
       if (node.dataset.action === 'upgrade') this._onBuyUpgrade(node.dataset.id);
       if (node.dataset.action === 'thread')  this._onBuyThread();
       if (node.dataset.action === 'process') this._onBuyProcess(node.dataset.id);
+      if (node.dataset.action === 'remove')  this._onRemove(node.dataset.id);
     });
   }
 
   renderShop(items) {
-    const key = items.map(u => `${u.id}:${u.owned}:${u.affordable}:${u.unlocked}`).join(',');
+    const key = items.map(u => `${u.id}:${u.owned}:${u.removable}:${u.affordable}:${u.unlocked}`).join(',');
     if (key === this._shopKey) return;
     this._shopKey = key;
 
@@ -201,30 +203,35 @@ export class InfoPanel {
       let stateCls = '';
       let icon     = item.icon ?? '🧵';
       let badge    = '';
+      let action   = '';
 
-      if (item.owned) {
+      if (item.owned && item.removable) {
+        stateCls = 'tree-node--removable';
+        badge    = '<span class="tree-node-badge tree-node-badge--remove">×</span>';
+        action   = 'remove';
+      } else if (item.owned) {
         stateCls = 'tree-node--owned';
         badge    = '<span class="tree-node-badge">✓</span>';
       } else if (!item.unlocked) {
         stateCls = 'tree-node--locked';
         icon     = '🔒';
-      } else if (item.affordable) {
-        stateCls = 'tree-node--affordable';
+      } else {
+        if (item.affordable) stateCls = 'tree-node--affordable';
+        action = item.isThread ? 'thread' : item.isProcess ? 'process' : 'upgrade';
       }
 
-      const action  = item.isThread ? 'thread' : item.isProcess ? 'process' : 'upgrade';
       const cost    = item.isFree || item.cost === 0 ? 'Free' : `$${item.cost}`;
       const tooltip = `
         <div class="tree-tooltip tree-tooltip--${nodePos.tooltipAlign}">
           <div class="tree-tooltip-name">${item.name}</div>
-          <div class="tree-tooltip-cost ${item.affordable || item.owned ? 'cost-ok' : 'cost-no'}">${item.owned ? '✓ owned' : cost}</div>
+          <div class="tree-tooltip-cost ${item.affordable || item.owned ? 'cost-ok' : 'cost-no'}">${item.owned && item.removable ? '× click to remove' : item.owned ? '✓ owned' : cost}</div>
           <div class="tree-tooltip-desc">${item.desc ?? ''}</div>
         </div>`;
 
       return `
         <div class="tree-node ${stateCls}"
              style="left:${nodePos.x}px;top:${nodePos.y}px"
-             data-action="${item.owned || !item.unlocked ? '' : action}"
+             data-action="${action}"
              data-id="${item.id}"
              data-cat="${nodePos.cat ?? 'core'}">
           <span class="tree-node-icon">${icon}</span>

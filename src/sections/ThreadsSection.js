@@ -54,6 +54,16 @@ export class ThreadsSection {
     this._resizeAndLayout();
   }
 
+  removeProcessHeader(processId) {
+    const idx = this._headers.findIndex(h => h.processId === processId);
+    if (idx === -1) return;
+    const { header } = this._headers[idx];
+    this._stage.removeChild(header);
+    header.destroy();
+    this._headers.splice(idx, 1);
+    this._resizeAndLayout();
+  }
+
   spawnParticleFor(thread, req, queueItemEl) {
     const card = this._cards.find(c => c.threadId === thread.id);
     if (!card || !queueItemEl) return;

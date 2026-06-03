@@ -25,6 +25,7 @@ export class MonitorSection {
     this._processGraph      = null;
     this._fibersEnabled     = false;
     this._userResized       = false;
+    this._lastW             = 0;
 
     this._trace           = new TraceGraph(0, 0, 0);
     this._throughputGraph = new ThroughputGraph(0, 0, 0);
@@ -38,19 +39,32 @@ export class MonitorSection {
     this._memMeter.setVisible(false);
     this._throughputGraph.setVisible(false);
 
-    this._app.renderer.on('resize', () => this._layout());
+    // Only resize renderer when the container WIDTH changes (window resize).
+    // Height is handled separately — the canvas is always sized to its full
+    // content height; CSS overflow:hidden clips what isn't shown.
+    this._resizeObserver = new ResizeObserver(() => {
+      const W = this._wrapEl.clientWidth;
+      if (W > 0 && W !== this._lastW) {
+        this._lastW = W;
+        this._resizeRenderer();
+        this._layout();
+      }
+    });
+    this._resizeObserver.observe(this._wrapEl);
   }
 
   addThread(thread) {
     this._trace.addThread(thread);
-    if (!this._userResized) this._refreshHeight();
-    this._scheduleLayout();
+    if (!this._userResized) this._refreshVisibleHeight();
+    this._resizeRenderer();
+    this._layout();
   }
 
   removeThread(threadId) {
     this._trace.removeThread(threadId);
-    if (!this._userResized) this._refreshHeight();
-    this._scheduleLayout();
+    if (!this._userResized) this._refreshVisibleHeight();
+    this._resizeRenderer();
+    this._layout();
   }
 
   sampleTrace(threads) {
@@ -103,23 +117,23 @@ export class MonitorSection {
       if (this._fibersEnabled) this._processGraph.setFibersEnabled(true);
     }
     this._areaEl.style.display = '';
-    this._refreshHeight();
-    this._scheduleLayout();
-  }
-
-  _scheduleLayout() {
+    this._refreshVisibleHeight();
+    // Use rAF so the element has real clientWidth after display change
     requestAnimationFrame(() => {
-      const W = this._wrapEl.clientWidth;
-      const H = this._wrapEl.clientHeight;
-      if (W > 0 && H > 0) this._app.renderer.resize(W, H);
+      this._lastW = this._wrapEl.clientWidth;
+      this._resizeRenderer();
       this._layout();
     });
   }
 
+  // Called by DragResizeController — only changes the CSS clip height, never the renderer.
   setHeight(h) {
     this._userResized = true;
     this._wrapEl.style.height = h + 'px';
   }
+
+  // No-op kept for DragResizeController compatibility (start/end callbacks).
+  setDragging(_dragging) {}
 
   setFibersEnabled(enabled) {
     this._fibersEnabled = enabled;
@@ -129,19 +143,34 @@ export class MonitorSection {
 
   get wrapEl() { return this._wrapEl; }
 
-  // Extra vertical space consumed by the memory breakdown (0 when profiler not active).
   get _memBreakdownExtraH() {
     return this._hasMemoryProfiler ? MEM_METER_BREAKDOWN_H : 0;
   }
 
-  _refreshHeight() {
+  // Compute the full content height the PixiJS scene needs.
+  _contentHeight() {
     let h = this._memBreakdownExtraH;
     if (this._hasMonitoring)     h += TRACE_PADDING_TOP;
     if (this._hasThroughput)     h += GRAPH_GAP + this._throughputGraph.totalHeight;
     if (this._hasProcessMonitor && this._processGraph) h += SECTION_GAP + this._processGraph.totalHeight;
     if (this._hasMonitoring)     h += SECTION_GAP + Math.max(80, this._trace.totalHeight + 4);
     if (h > 0) h += BOTTOM_PAD;
-    this._wrapEl.style.height = Math.max(MONITOR_MIN_H, h) + 'px';
+    return Math.max(MONITOR_MIN_H, h);
+  }
+
+  // Resize the CSS visible height (auto-fit unless user dragged).
+  _refreshVisibleHeight() {
+    if (!this._userResized) {
+      this._wrapEl.style.height = this._contentHeight() + 'px';
+    }
+  }
+
+  // Resize the renderer to the full content height so everything is always rendered.
+  // This is called only when content changes or width changes — never during drag.
+  _resizeRenderer() {
+    const W = this._wrapEl.clientWidth;
+    const H = this._contentHeight();
+    if (W > 0 && H > 0) this._app.renderer.resize(W, H);
   }
 
   _layout() {

@@ -1,4 +1,4 @@
-import { TICK_MS, MEM_BASE, MEM_NANO, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, BASE_SPAWN_RATE, FIBER_MEM, EVENTS } from '../config.js';
+import { TICK_MS, MEM_BASE, MEM_NANO, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, BASE_SPAWN_RATE, FIBER_MEM, EVENTS, OOM_RESTART_TICKS } from '../config.js';
 import { UPGRADES } from '../UpgradeConfig.js';
 
 const VPS_TIERS = ['large_vps', 'medium_vps', 'small_vps', 'nano_vps'];
@@ -9,10 +9,11 @@ import { RequestFactory }          from './RequestFactory.js';
 import { SpawnStrategy }           from './SpawnStrategy.js';
 
 export class GameState {
-  _nextProcessId = 0;
-  _nextThreadId  = 0;
-  _nextFiberId   = 1000;
-  _fibersEnabled = false;
+  _nextProcessId  = 0;
+  _nextThreadId   = 0;
+  _nextFiberId    = 1000;
+  _fibersEnabled  = false;
+  _restartTicks   = 0;
 
   constructor(events) {
     this._events          = events;
@@ -82,6 +83,7 @@ export class GameState {
     if (!free) this.money -= THREAD_COST;
 
     const pid    = processId ?? this._leastLoadedProcessId();
+
     const id     = ++this._nextThreadId;
     const thread = {
       id,
@@ -126,13 +128,20 @@ export class GameState {
 
   step() {
     this.tick++;
+    if (this._restartTicks > 0) {
+      this._restartTicks--;
+      return;
+    }
     const now = performance.now();
     this._assignRequests(now);
     const { waiting, active } = this._advancePhases(now);
     this._gvl.postStep(this.processes, this.threads, now);
     this._metrics.sample(waiting, active);
     this._processMetrics.sampleAll(this.processes, this.threads, this._fibersEnabled);
+    if (this.memUsed > this.memMax) this._oomCrash();
   }
+
+  get isRestarting() { return this._restartTicks > 0; }
 
   get throughputWindow()  { return this._metrics.throughputWindow; }
   get completionsPerMin() { return this._metrics.completionsPerMin; }
@@ -181,9 +190,7 @@ export class GameState {
 
     for (const t of this.threads) {
       if (t.status === 'idle' && this.queue.length > 0) {
-        const req    = this.queue[0];
-        const reqMem = req?.def?.memMB ?? 20;
-        if (this.memUsed + reqMem > this.memMax) break;
+        const req = this.queue[0];
         this.queue.shift();
         t.request      = req;
         t.phaseIdx     = 0;
@@ -199,9 +206,6 @@ export class GameState {
   _assignFibers(now) {
     if (this.threads.length === 0) return;
     while (this.queue.length > 0) {
-      const nextReq = this.queue[0];
-      const reqMem  = nextReq?.def?.memMB ?? 20;
-      if (this.memUsed + reqMem > this.memMax) break;
       // Least-loaded thread gets the next request (simulates OS distributing connections)
       const t   = this.threads.reduce((min, th) =>
         th.extraFibers.length < min.extraFibers.length ? th : min
@@ -311,6 +315,21 @@ export class GameState {
     return { waiting, active };
   }
 
+  _oomCrash() {
+    for (const t of this.threads) {
+      t.request      = null;
+      t.status       = 'idle';
+      t.phaseIdx     = 0;
+      t.phaseElapsed = 0;
+      t.phaseRunWall = null;
+      t.extraFibers  = [];
+      t.cpuFiberId   = null;
+    }
+    for (const proc of this.processes) proc.gvlHolder = null;
+    this._restartTicks = OOM_RESTART_TICKS;
+    this._events.emit(EVENTS.OOM_CRASH);
+  }
+
   _redistributeThreads() {
     const n     = this.processes.length;
     const total = this.threads.length;
@@ -336,6 +355,36 @@ export class GameState {
       if (count < minCount) { minCount = count; minId = proc.id; }
     }
     return minId;
+  }
+
+  // Remove the last thread (free, no refund).
+  removeLastThread() {
+    if (this.threads.length === 0) return false;
+    const thread = this.threads[this.threads.length - 1];
+    const proc = this.processes.find(p => p.id === thread.processId);
+    if (proc && proc.gvlHolder === thread.id) proc.gvlHolder = null;
+    thread.request = null; thread.status = 'idle';
+    thread.extraFibers = []; thread.cpuFiberId = null;
+    this.threads = this.threads.slice(0, -1);
+    this._events.emit(EVENTS.THREAD_REMOVED, thread);
+    return true;
+  }
+
+  // Remove the last process (free, no refund). Redistributes threads.
+  removeLastProcess() {
+    if (this.processes.length <= 1) return false;
+    const proc = this.processes[this.processes.length - 1];
+    this.processes = this.processes.slice(0, -1);
+    this._redistributeThreads();
+    this._events.emit(EVENTS.PROCESS_REMOVED, proc);
+    return true;
+  }
+
+  // Remove a marketing upgrade (free, no refund).
+  removeUpgrade(id) {
+    if (!this.upgrades.has(id)) return false;
+    this.upgrades.delete(id);
+    return true;
   }
 
   get fibersEnabled() { return this._fibersEnabled; }

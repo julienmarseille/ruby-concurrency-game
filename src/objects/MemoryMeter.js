@@ -1,5 +1,5 @@
 import { Graphics, Text } from 'pixi.js';
-import { C, CH, LAYERS, PAD, SPACING, TEXT_STYLES } from '../config.js';
+import { C, CH, LAYERS, PAD, SPACING, TEXT_STYLES, OOM_WARN_PCT } from '../config.js';
 
 const BAR_H         = 7;
 const LABEL_OFFSET  = 14;
@@ -93,8 +93,9 @@ export class MemoryMeter {
     this._bg.rect(PAD, y, mW, BAR_H).fill({ color: C.surface });
 
     this._fill.clear();
-    const fc = smoothPct > 0.8 ? C.danger : smoothPct > 0.6 ? C.cpu : C.green;
-    this._fill.rect(PAD, y, Math.max(4, mW * smoothPct), BAR_H).fill({ color: fc });
+    const fc       = smoothPct > 0.8 ? C.danger : smoothPct > 0.6 ? C.cpu : C.green;
+    const pulse    = pct > OOM_WARN_PCT ? 0.5 + 0.5 * Math.abs(Math.sin(Date.now() / 250)) : 1;
+    this._fill.rect(PAD, y, Math.max(4, mW * smoothPct), BAR_H).fill({ color: fc, alpha: pulse });
 
     this._label.text = `Memory  ${smoothUsed} / ${memMax} MB`;
     this._label.x    = PAD;

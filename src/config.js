@@ -105,6 +105,10 @@ export const TEXT_STYLES = {
 export const GVL_ALERT   = 60;
 export const GVL_WARNING = 30;
 
+// ─── Memory pressure ─────────────────────────────────────────────────────────
+export const OOM_WARN_PCT      = 0.90;  // memory bar starts pulsing
+export const OOM_RESTART_TICKS = 40;   // 2s downtime at 50ms/tick
+
 // ─── Events ───────────────────────────────────────────────────────────────────
 export const EVENTS = {
   THREAD_ADDED:          'threadAdded',
@@ -115,6 +119,8 @@ export const EVENTS = {
   REQUEST_COMPLETED:     'requestCompleted',
   UPGRADE_UNLOCKED:      'upgradeUnlocked',
   THREADS_REDISTRIBUTED: 'threadsRedistributed',
+  OOM_CRASH:             'oomCrash',
+  PROCESS_REMOVED:       'processRemoved',
 };
 
 // ─── Request types ────────────────────────────────────────────────────────────
