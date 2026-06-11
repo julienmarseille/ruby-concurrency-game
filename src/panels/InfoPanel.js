@@ -69,17 +69,17 @@ const TREE_NODES = [
   // ── Marketing chain: COL_OBS, rows 6-10
   { id: 'marketing_1',      x: COL_OBS,    y: 8 + STEP * 6,  tooltipAlign: 'left',   short: 'I',       cat: 'marketing' },
   { id: 'marketing_2',      x: COL_OBS,    y: 8 + STEP * 7,  tooltipAlign: 'left',   short: 'II',      cat: 'marketing' },
-  { id: 'marketing_3',      x: COL_OBS,    y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'III',     cat: 'marketing' },
-  { id: 'marketing_4',      x: COL_OBS,    y: 8 + STEP * 9,  tooltipAlign: 'left',   short: 'IV',      cat: 'marketing' },
-  { id: 'marketing_5',      x: COL_OBS,    y: 8 + STEP * 10, tooltipAlign: 'left',   short: 'V',       cat: 'marketing' },
+  { id: 'marketing_3',      x: COL_OBS,    y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'III',     cat: 'marketing', tooltipDir: 'up' },
+  { id: 'marketing_4',      x: COL_OBS,    y: 8 + STEP * 9,  tooltipAlign: 'left',   short: 'IV',      cat: 'marketing', tooltipDir: 'up' },
+  { id: 'marketing_5',      x: COL_OBS,    y: 8 + STEP * 10, tooltipAlign: 'left',   short: 'V',       cat: 'marketing', tooltipDir: 'up' },
 
   // ── Traffic: COL_TRAFFIC, rows 6 and 8 (interleaved with marketing)
   { id: 'mixed_requests',   x: COL_TRAFFIC,y: 8 + STEP * 6,  tooltipAlign: 'left',   short: 'Mixed',   cat: 'traffic'   },
-  { id: 'report_requests',  x: COL_TRAFFIC,y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'PDF',     cat: 'traffic'   },
+  { id: 'report_requests',  x: COL_TRAFFIC,y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'PDF',     cat: 'traffic',   tooltipDir: 'up' },
 
   // ── Runtime: fibers at last thread row, ractors one below — left of threads
-  { id: 'fiber_scheduler',  x: COL_OBS,    y: 8 + lastThreadRow * STEP,       tooltipAlign: 'left',  short: 'Fibers',  cat: 'runtime' },
-  { id: 'ractors',          x: COL_TRAFFIC,y: 8 + (lastThreadRow + 1) * STEP, tooltipAlign: 'left',  short: 'Ractors', cat: 'runtime' },
+  { id: 'fiber_scheduler',  x: COL_OBS,    y: 8 + lastThreadRow * STEP,       tooltipAlign: 'left',  short: 'Fibers',  cat: 'runtime', tooltipDir: 'up' },
+  { id: 'ractors',          x: COL_TRAFFIC,y: 8 + (lastThreadRow + 1) * STEP, tooltipAlign: 'left',  short: 'Ractors', cat: 'runtime', tooltipDir: 'up' },
 
   // ── Thread serpentine: 4-wide (PA/PB/TC/TD), rows 5-12 (shares rows 5+ with left-col nodes)
   ...Array.from({ length: MAX_THREADS - 1 }, (_, i) => {
@@ -93,6 +93,7 @@ const TREE_NODES = [
       x:            cols[pos],
       y:            8 + (5 + row) * STEP,
       tooltipAlign: 'right',
+      tooltipDir:   row >= 4 ? 'up' : undefined,
       short:        `T${i + 2}`,
       cat:          'scaling',
     };
@@ -262,7 +263,7 @@ export class InfoPanel {
 
       const cost    = item.isFree || item.cost === 0 ? 'Free' : `$${item.cost}`;
       const tooltip = `
-        <div class="tree-tooltip tree-tooltip--${nodePos.tooltipAlign}">
+        <div class="tree-tooltip tree-tooltip--${nodePos.tooltipAlign}${nodePos.tooltipDir === 'up' ? ' tree-tooltip--up' : ''}">
           <div class="tree-tooltip-name">${item.name}</div>
           <div class="tree-tooltip-cost ${item.affordable || item.owned ? 'cost-ok' : 'cost-no'}">${item.owned && item.removable ? '× click to remove' : item.owned ? '✓ owned' : cost}</div>
           <div class="tree-tooltip-desc">${item.desc ?? ''}</div>

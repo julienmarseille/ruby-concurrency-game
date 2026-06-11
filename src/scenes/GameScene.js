@@ -74,6 +74,7 @@ export class GameScene {
       .on(EVENTS.PROCESS_ADDED,         proc              => this._onProcessAdded(proc))
       .on(EVENTS.REQUEST_SPAWNED,       ()                => this._queue.update(this.gs.queue))
       .on(EVENTS.REQUEST_ASSIGNED,      ({ thread, req })          => this._onAssigned(thread, req))
+      .on(EVENTS.REQUEST_COMPLETED,     req               => this._header.spawnMoneyPop(req.def.reward))
       .on(EVENTS.UPGRADE_UNLOCKED,      id                => this._onUpgradeUnlocked(id))
       .on(EVENTS.THREADS_REDISTRIBUTED, n                 => InfoPanel.flash(`Threads redistributed across ${n} processes`))
       .on(EVENTS.OOM_CRASH,             ()                => this._onOomCrash())

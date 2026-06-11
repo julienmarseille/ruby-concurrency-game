@@ -3,6 +3,7 @@ import { CH, GVL_ALERT, GVL_WARNING } from '../config.js';
 export class StatsHeader {
   constructor() {
     this._moneyEl       = document.getElementById('hdr-money');
+    this._moneyStatEl   = this._moneyEl?.closest('.stat');
     this._gvlEl         = document.getElementById('hdr-gvl');
     this._gvlStatEl     = this._gvlEl?.closest('.stat');
     this._gvlLabelEl    = this._gvlStatEl?.querySelector('.stat-label');
@@ -10,6 +11,17 @@ export class StatsHeader {
     this._rpsStatEl     = this._rpsEl?.closest('.stat');
     this._incomingEl    = document.getElementById('hdr-incoming');
     this._incomingStatEl = this._incomingEl?.closest('.stat');
+  }
+
+  spawnMoneyPop(amount) {
+    if (!this._moneyStatEl) return;
+    const w   = this._moneyStatEl.offsetWidth;
+    const pop = document.createElement('span');
+    pop.className   = 'money-pop';
+    pop.textContent = '+$' + amount;
+    pop.style.left  = Math.floor(Math.random() * Math.max(1, w - 40)) + 'px';
+    this._moneyStatEl.appendChild(pop);
+    pop.addEventListener('animationend', () => pop.remove());
   }
 
   update(gs) {
