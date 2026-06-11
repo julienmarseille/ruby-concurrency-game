@@ -26,6 +26,14 @@ export class PipeSystem {
   setCards(cards) { this._cards = cards; this._pipeDirty = true; }
   setTrunkX(x)    { this._trunkX = x;   this._pipeDirty = true; }
 
+  cancelParticlesFor(card) {
+    this._particles = this._particles.filter(p => {
+      if (p.toCard !== card) return true;
+      p.dot.destroy();
+      return false;
+    });
+  }
+
   spawnParticle(fromPos, toCard, color) {
     const dot   = new Graphics();
     this._dotLayer.addChild(dot);

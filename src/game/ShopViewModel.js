@@ -12,13 +12,12 @@ export class ShopViewModel {
   }
 
   _processNodes(gs) {
-    return [1, 2, 3, 4].map(n => {
+    return [1, 2, 3, 4, 5, 6, 7, 8].map(n => {
       const owned   = gs.processes.length >= n;
       const isFree  = n === 1;
       const cost    = isFree ? 0 : processCostFor(n);
       const ramOk   = n === 1 ? true : gs.memUsed + PROCESS_MEM <= gs.memMax;
       const coresOk = gs.coreCount >= n;
-      // Ractors replace multi-process CPU parallelism — block new process purchases
       const blockedByRactors = gs.ractorsEnabled && !owned;
       return {
         id:         `process_${n}`,
@@ -47,9 +46,9 @@ export class ShopViewModel {
       const n     = i + 1;
       const owned = gs.threads.length >= n;
       const ramOk = gs.memUsed + THREAD_MEM <= gs.memMax;
-      // In fiber mode: 1 thread per process (Falcon reactor), max 4 total
+      // In fiber mode: 1 thread per process (Falcon reactor)
       const unlockedFiber  = owned || gs.processes.length >= n;
-      const unlockedNormal = owned || (hasProcess1 && gs.threads.length >= n - 1);
+      const unlockedNormal = hasProcess1;
 
       let icon, desc;
       if (fiberMode && ractorMode) {

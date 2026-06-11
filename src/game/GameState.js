@@ -69,7 +69,7 @@ export class GameState {
   }
 
   addProcess() {
-    if (this.processes.length >= 4) return false;
+    if (this.processes.length >= 8) return false;
     if (this.processes.length >= this.coreCount) return false;
     const procCost = processCostFor(this.processes.length + 1);
     if (this.money < procCost) return false;
@@ -486,6 +486,7 @@ export class GameState {
 
   _enableFibers() {
     this._fibersEnabled = true;
+    if (this.queue.length > 20) this.queue = this.queue.slice(0, 20);
     // In Ractor mode each thread is its own GVL domain — keep all of them,
     // each gets its own fiber scheduler. Without Ractors, Falcon model applies:
     // keep only 1 thread per process.

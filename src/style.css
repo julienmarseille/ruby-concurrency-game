@@ -55,7 +55,7 @@ header#hdr { background: var(--bg-card); border-bottom: 1px solid var(--border);
 #monitor-area { flex-shrink: 0; border-top: 1px solid var(--border); }
 #monitor-resize-handle { padding: 5px 14px; cursor: ns-resize; font-size: 9px; color: var(--text-dim); background: var(--bg); display: flex; align-items: center; user-select: none; letter-spacing: 1px; text-transform: uppercase; }
 #monitor-resize-handle:hover { background: var(--bg-card); }
-#monitor-canvas-wrap { overflow: hidden; position: relative; }
+#monitor-canvas-wrap { overflow-y: auto; position: relative; }
 #monitor-canvas-wrap canvas { display: block; }
 
 .req-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 10px; flex-shrink: 0; margin-bottom: 4px; overflow: hidden; }

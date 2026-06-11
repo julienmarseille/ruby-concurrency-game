@@ -157,6 +157,7 @@ export class GameScene {
     }
     if (id === 'fiber_scheduler') {
       this._monitor.setFibersEnabled(true);
+      this._queue.update(this.gs.queue);
       requestAnimationFrame(() => this._threads.relayout());
     }
     if (id === 'ractors') {

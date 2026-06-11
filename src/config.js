@@ -10,20 +10,29 @@ export const MEM_MEDIUM       = 2048;
 export const MEM_LARGE        = 4096;
 export const THREAD_MEM       = 18;
 export const PROCESS_MEM      = 50;
-// Thread costs escalate to discourage over-buying before traffic arrives
-export const THREAD_COSTS  = [100, 100, 100, 150, 150, 150, 200, 200, 200, 250, 250, 250];
+// Thread costs: groups of 4 matching the 4 threads-per-process model
+export const THREAD_COSTS  = [
+  100, 100, 100, 100,   // process 1
+  150, 150, 150, 150,   // process 2
+  200, 200, 200, 200,   // process 3
+  250, 250, 250, 250,   // process 4
+  300, 300, 300, 300,   // process 5
+  350, 350, 350, 350,   // process 6
+  400, 400, 400, 400,   // process 7
+  450, 450, 450, 450,   // process 8
+];
 export function threadCostFor(n) {
   return THREAD_COSTS[Math.min(n - 1, THREAD_COSTS.length - 1)];
 }
 
 // Process costs escalate per additional process (process_1 is free)
-export const PROCESS_COSTS = [0, 0, 200, 300, 400];
+export const PROCESS_COSTS = [0, 0, 200, 300, 400, 500, 600, 700, 800];
 export function processCostFor(n) {
-  return PROCESS_COSTS[Math.min(n, PROCESS_COSTS.length - 1)] ?? 400;
+  return PROCESS_COSTS[Math.min(n, PROCESS_COSTS.length - 1)] ?? 800;
 }
 export const BASE_SPAWN_RATE  = 0.5;
 export const FIBER_MEM        = 0.5;
-export const MAX_THREADS      = 12;
+export const MAX_THREADS      = 32;
 
 // ─── Layout (shared by JS modules) ───────────────────────────────────────────
 export const PAD              = 14;

@@ -47,6 +47,7 @@ export class ThreadsSection {
     const idx = this._cards.findIndex(c => c.threadId === threadId);
     if (idx === -1) return;
     const card = this._cards[idx];
+    this._pipes.cancelParticlesFor(card);
     this._stage.removeChild(card);
     card.destroy();
     this._cards.splice(idx, 1);

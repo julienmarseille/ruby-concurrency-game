@@ -1,82 +1,97 @@
 import { MAX_THREADS } from '../config.js';
 
 const NODE_W      = 38;
-const STEP        = 52;
+const STEP        = 52;   // equal horizontal (52-38=14px) and vertical (52-38=14px) gap
 
+// 7 columns at 52px spacing → 14px gap between adjacent nodes in both axes.
 const COL_OBS     = 0;
-const COL_TRACE   = 50;
-const COL_TRAFFIC = 100;
-const COL_CENTER  = 156;
-const COL_MR      = 212;
-const COL_PROC    = 262;
-const COL_MKT     = 312;
+const COL_TRAFFIC = 52;
+const COL_CENTER  = 104;
+const COL_PA      = 156;
+const COL_PB      = 208;
+const COL_TC      = 260;
+const COL_TD      = 312;
 
-// Spine at rows 4-5-6 (vertical center).
-// VPS chain goes UP from nano along D column (rows 0-2).
-// Process chain goes UP-RIGHT from process_1 along F column (rows 5, 3, 1).
-// Obs items branch LEFT from T1/request_tracing (rows 4-6).
-// Threads serpentine 3-wide (E/F/G) below T1 (rows 7+).
-// Marketing chain runs DOWN in A column (rows 7-12).
-// Mixed/PDF in C column (rows 8, 10). Fibers at D,9.
+// Layout overview (rows 0-4 = upper section, rows 5+ = threads/obs-leaves/marketing/runtime):
+//
+//  Row 0:  [large_vps  CTR ]
+//  Row 1:  [med_vps    CTR ]
+//  Row 2:  [proc_mon OBS] [mem+ TRF] [sm_vps CTR] [P8 PA] [P7 PB] [P6 TC] [P5 TD]
+//  Row 3:  [Monitor OBS] [RAM TRF] [nano_vps CTR] [Start PA] [P2 PB] [P3 TC] [P4 TD]
+//  Row 4:  [thread_1  CTR]   ← hub alone
+//  Row 5:  [Tracing OBS]  [Chart TRF]  + T2-T5 (PA/PB/TC/TD)
+//  Row 6+: marketing I-V (OBS), mixed/PDF (TRAFFIC), thread serpentine (PA/PB/TC/TD)
+//  lastThreadRow-1: [Fibers OBS]  [Ractors TRF]  ← left of threads, not at the very bottom
+
+const threadRowCount = Math.ceil((MAX_THREADS - 1) / 4);  // 8 for 32 threads
+const lastThreadRow  = 4 + threadRowCount;                  // 12
+
+const TREE_W = COL_TD + NODE_W + 4;   // 354
+const TREE_H = 8 + (lastThreadRow + 1) * STEP + NODE_W + 16;
 
 const TREE_NODES = [
-  // ── VPS chain: upward from Nano along center spine
+  // ── VPS chain: center spine, rows 0-3
   { id: 'large_vps',        x: COL_CENTER, y: 8 + STEP * 0,  tooltipAlign: 'center', short: 'Large',   cat: 'infra'     },
   { id: 'medium_vps',       x: COL_CENTER, y: 8 + STEP * 1,  tooltipAlign: 'center', short: 'Medium',  cat: 'infra'     },
   { id: 'small_vps',        x: COL_CENTER, y: 8 + STEP * 2,  tooltipAlign: 'center', short: 'Small',   cat: 'infra'     },
+  { id: 'nano_vps',         x: COL_CENTER, y: 8 + STEP * 3,  tooltipAlign: 'center', short: 'Nano',    cat: 'infra'     },
 
-  // ── Process chain: F column, upward from process_1 (rows 5, 3, 1)
-  { id: 'process_4',        x: COL_PROC,   y: 8 + STEP * 1,  tooltipAlign: 'right',  short: 'P4',      cat: 'scaling'   },
-  { id: 'process_3',        x: COL_PROC,   y: 8 + STEP * 3,  tooltipAlign: 'right',  short: 'P3',      cat: 'scaling'   },
+  // ── Process chain: 2-row serpentine (PA/PB/TC/TD)
+  // Row 2 (right→left): P5(TD)  P6(TC)  P7(PB)  P8(PA)  — P5 directly above P4
+  { id: 'process_5',        x: COL_TD,     y: 8 + STEP * 2,  tooltipAlign: 'right',  short: 'P5',      cat: 'scaling'   },
+  { id: 'process_6',        x: COL_TC,     y: 8 + STEP * 2,  tooltipAlign: 'right',  short: 'P6',      cat: 'scaling'   },
+  { id: 'process_7',        x: COL_PB,     y: 8 + STEP * 2,  tooltipAlign: 'right',  short: 'P7',      cat: 'scaling'   },
+  { id: 'process_8',        x: COL_PA,     y: 8 + STEP * 2,  tooltipAlign: 'right',  short: 'P8',      cat: 'scaling'   },
+  // Row 3 (left→right): Start(PA)  P2(PB)  P3(TC)  P4(TD)  — nano_vps→Start short rightward edge
+  { id: 'process_2',        x: COL_PB,     y: 8 + STEP * 3,  tooltipAlign: 'right',  short: 'P2',      cat: 'scaling'   },
+  { id: 'process_3',        x: COL_TC,     y: 8 + STEP * 3,  tooltipAlign: 'right',  short: 'P3',      cat: 'scaling'   },
+  { id: 'process_4',        x: COL_TD,     y: 8 + STEP * 3,  tooltipAlign: 'right',  short: 'P4',      cat: 'scaling'   },
 
-  // ── Row 4: obs left, mem profiler (C), nano center
-  { id: 'process_monitor',  x: COL_OBS,    y: 8 + STEP * 4,  tooltipAlign: 'left',   short: 'Srv Mon', cat: 'obs'       },
-  { id: 'memory_profiler',  x: COL_TRAFFIC,y: 8 + STEP * 4,  tooltipAlign: 'left',   short: 'Mem+',    cat: 'obs'       },
-  { id: 'nano_vps',         x: COL_CENTER, y: 8 + STEP * 4,  tooltipAlign: 'center', short: 'Nano',    cat: 'infra'     },
+  // ── Row 2: top obs tier alongside small_vps + process chain (P5-P8 at TD/TC/PB/PA)
+  { id: 'process_monitor',  x: COL_OBS,    y: 8 + STEP * 2,  tooltipAlign: 'left',   short: 'ProcMon', cat: 'obs'       },
+  { id: 'memory_profiler',  x: COL_TRAFFIC,y: 8 + STEP * 2,  tooltipAlign: 'left',   short: 'Mem+',    cat: 'obs'       },
 
-  // ── Row 5: obs left, memory meter (C), process_1 center, process_2 right
-  { id: 'monitoring',       x: COL_OBS,    y: 8 + STEP * 5,  tooltipAlign: 'left',   short: 'Monitor', cat: 'obs'       },
-  { id: 'throughput_graph', x: COL_TRACE,  y: 8 + STEP * 5,  tooltipAlign: 'left',   short: 'Chart',   cat: 'obs'       },
-  { id: 'memory_meter',     x: COL_TRAFFIC,y: 8 + STEP * 5,  tooltipAlign: 'left',   short: 'RAM',     cat: 'obs'       },
-  { id: 'process_1',        x: COL_CENTER, y: 8 + STEP * 5,  tooltipAlign: 'center', short: 'Start',   cat: 'core'      },
-  { id: 'process_2',        x: COL_PROC,   y: 8 + STEP * 5,  tooltipAlign: 'right',  short: 'P2',      cat: 'scaling'   },
+  // ── Row 3: mid obs tier + nano_vps + process chain (Start/PA, P2/PB, P3/TC, P4/TD)
+  { id: 'monitoring',       x: COL_OBS,    y: 8 + STEP * 3,  tooltipAlign: 'left',   short: 'Monitor', cat: 'obs'       },
+  { id: 'memory_meter',     x: COL_TRAFFIC,y: 8 + STEP * 3,  tooltipAlign: 'left',   short: 'RAM',     cat: 'obs'       },
+  // process_1 is a visual root (always visible) — no edge points to it; unlocked by game logic
+  { id: 'process_1',        x: COL_PA,     y: 8 + STEP * 3,  tooltipAlign: 'right',  short: 'Start',   cat: 'core'      },
 
-  // ── Row 6: tracing left, T1 center (the "sun")
-  { id: 'request_tracing',  x: COL_TRACE,  y: 8 + STEP * 6,  tooltipAlign: 'left',   short: 'Tracing', cat: 'obs'       },
-  { id: 'thread_1',         x: COL_CENTER, y: 8 + STEP * 6,  tooltipAlign: 'center', short: 'T1',      cat: 'scaling'   },
+  // ── Row 4: thread_1 alone — no same-row neighbors
+  { id: 'thread_1',         x: COL_CENTER, y: 8 + STEP * 4,  tooltipAlign: 'center', short: 'T1',      cat: 'scaling'   },
 
-  // ── Row 7: marketing I (A), thread serpentine row 1
-  { id: 'marketing_1',      x: COL_OBS,    y: 8 + STEP * 7,  tooltipAlign: 'left',   short: 'I',       cat: 'marketing' },
+  // ── Row 5: Tracing/Chart back on left (OBS/TRAFFIC), shares row with T2-T5 (different cols)
+  // T1→Tracing uses a short down-left mid-split (midY=261, just above row5 top at 268 — no crossing)
+  // process_1→T1: down-left mid-split (PA/row3 → CTR/row4)
+  { id: 'request_tracing',  x: COL_OBS,    y: 8 + STEP * 5,  tooltipAlign: 'left',   short: 'Tracing', cat: 'obs'       },
+  { id: 'throughput_graph', x: COL_TRAFFIC,y: 8 + STEP * 5,  tooltipAlign: 'left',   short: 'Chart',   cat: 'obs'       },
 
-  // ── Row 8: marketing II (A), Mixed (C)
-  { id: 'marketing_2',      x: COL_OBS,    y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'II',      cat: 'marketing' },
-  { id: 'mixed_requests',   x: COL_TRAFFIC,y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'Mixed',   cat: 'traffic'   },
+  // ── Marketing chain: COL_OBS, rows 6-10
+  { id: 'marketing_1',      x: COL_OBS,    y: 8 + STEP * 6,  tooltipAlign: 'left',   short: 'I',       cat: 'marketing' },
+  { id: 'marketing_2',      x: COL_OBS,    y: 8 + STEP * 7,  tooltipAlign: 'left',   short: 'II',      cat: 'marketing' },
+  { id: 'marketing_3',      x: COL_OBS,    y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'III',     cat: 'marketing' },
+  { id: 'marketing_4',      x: COL_OBS,    y: 8 + STEP * 9,  tooltipAlign: 'left',   short: 'IV',      cat: 'marketing' },
+  { id: 'marketing_5',      x: COL_OBS,    y: 8 + STEP * 10, tooltipAlign: 'left',   short: 'V',       cat: 'marketing' },
 
-  // ── Row 9: marketing III (A)
-  { id: 'marketing_3',      x: COL_OBS,    y: 8 + STEP * 9,  tooltipAlign: 'left',   short: 'III',     cat: 'marketing' },
+  // ── Traffic: COL_TRAFFIC, rows 6 and 8 (interleaved with marketing)
+  { id: 'mixed_requests',   x: COL_TRAFFIC,y: 8 + STEP * 6,  tooltipAlign: 'left',   short: 'Mixed',   cat: 'traffic'   },
+  { id: 'report_requests',  x: COL_TRAFFIC,y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'PDF',     cat: 'traffic'   },
 
-  // ── Row 10: marketing IV (A), PDF (C)
-  { id: 'marketing_4',      x: COL_OBS,    y: 8 + STEP * 10, tooltipAlign: 'left',   short: 'IV',      cat: 'marketing' },
-  { id: 'report_requests',  x: COL_TRAFFIC,y: 8 + STEP * 10, tooltipAlign: 'left',   short: 'PDF',     cat: 'traffic'   },
+  // ── Runtime: fibers at last thread row, ractors one below — left of threads
+  { id: 'fiber_scheduler',  x: COL_OBS,    y: 8 + lastThreadRow * STEP,       tooltipAlign: 'left',  short: 'Fibers',  cat: 'runtime' },
+  { id: 'ractors',          x: COL_TRAFFIC,y: 8 + (lastThreadRow + 1) * STEP, tooltipAlign: 'left',  short: 'Ractors', cat: 'runtime' },
 
-  // ── Row 11: Fibers (D), Ractors (E) — same level, independent paths from thread_1
-  { id: 'fiber_scheduler',  x: COL_TRAFFIC,y: 8 + STEP * 12, tooltipAlign: 'left',   short: 'Fibers',  cat: 'runtime'   },
-  { id: 'ractors',          x: COL_MR,     y: 8 + STEP * 12, tooltipAlign: 'right',  short: 'Ractors', cat: 'runtime'   },
-
-  // ── Row 12: marketing V (A)
-  { id: 'marketing_5',      x: COL_OBS,    y: 8 + STEP * 12, tooltipAlign: 'left',   short: 'V',       cat: 'marketing' },
-
-  // ── Thread serpentine: 3-wide (E/F/G), row pairs starting at row 7
-  // Pattern per 6 threads: E,F,G (row N) then G,F,E (row N+1), then repeat
+  // ── Thread serpentine: 4-wide (PA/PB/TC/TD), rows 5-12 (shares rows 5+ with left-col nodes)
   ...Array.from({ length: MAX_THREADS - 1 }, (_, i) => {
-    const group     = Math.floor(i / 6);
-    const pos       = i % 6;
-    const cols      = [COL_MR, COL_PROC, COL_MKT, COL_MKT, COL_PROC, COL_MR];
-    const rowOffset = pos < 3 ? 0 : 1;
+    const row  = Math.floor(i / 4);
+    const pos  = i % 4;
+    const lr   = [COL_PA, COL_PB, COL_TC, COL_TD];
+    const rl   = [COL_TD, COL_TC, COL_PB, COL_PA];
+    const cols = (row % 2 === 0) ? lr : rl;
     return {
       id:           `thread_${i + 2}`,
       x:            cols[pos],
-      y:            8 + (7 + group * 2 + rowOffset) * STEP,
+      y:            8 + (5 + row) * STEP,
       tooltipAlign: 'right',
       short:        `T${i + 2}`,
       cat:          'scaling',
@@ -85,36 +100,44 @@ const TREE_NODES = [
 ];
 
 const TREE_EDGES = [
-  // VPS chain (upward from nano)
+  // VPS chain (upward)
   ['nano_vps',        'small_vps'],
   ['small_vps',       'medium_vps'],
   ['medium_vps',      'large_vps'],
-  // Spine
+  // nano_vps(CTR/row3) → process_1(PA/row3): short rightward edge (14px gap)
   ['nano_vps',        'process_1'],
+  // process_1 → thread_1: down-right (PA/row3 → CTR/row4)
   ['process_1',       'thread_1'],
-  // Process chain (right of spine, upward)
-  ['process_1',       'process_2'],
-  ['process_2',       'process_3'],
-  ['process_3',       'process_4'],
-  // Obs cluster (left of spine, upward)
+  // Process chain: 2-row serpentine
+  // Row 3 left→right: Start(PA)→P2(PB)→P3(TC)→P4(TD)
+  ['process_1',       'process_2'],   // same row, rightward (PA→PB)
+  ['process_2',       'process_3'],   // same row, rightward (PB→TC)
+  ['process_3',       'process_4'],   // same row, rightward (TC→TD)
+  // Turn: P4(TD/row3) → P5(TD/row2): same col, upward
+  ['process_4',       'process_5'],
+  // Row 2 right→left: P5(TD)→P6(TC)→P7(PB)→P8(PA)
+  ['process_5',       'process_6'],   // same row, leftward
+  ['process_6',       'process_7'],   // same row, leftward
+  ['process_7',       'process_8'],   // same row, leftward
+  // Obs cluster
+  // T1→Tracing: down-left, midY=261 — just above row5 top (268), so no crossing with row5 nodes
   ['thread_1',        'request_tracing'],
-  ['request_tracing', 'throughput_graph'],
-  ['request_tracing', 'monitoring'],
-  ['monitoring',      'process_monitor'],
-  // Memory cluster (C column, from T1 upward)
-  ['thread_1',     'memory_meter'],
-  ['memory_meter', 'memory_profiler'],
-  // Traffic (below T1)
-  ['thread_1',        'mixed_requests'],
+  ['request_tracing', 'throughput_graph'],  // same row → (OBS→TRAFFIC)
+  ['request_tracing', 'monitoring'],        // same col (OBS), upward
+  ['monitoring',      'process_monitor'],   // same col (OBS), upward
+  ['thread_1',        'memory_meter'],      // up-left (CTR/row4 → TRAFFIC/row3)
+  ['memory_meter',    'memory_profiler'],   // same col (TRAFFIC), upward
+  // Traffic — 'bottom': straight down at x=123 then hook left, clears row5 Tracing/Chart
+  ['thread_1',        'mixed_requests',   'bottom'],
   ['mixed_requests',  'report_requests'],
-  // Fibers + Ractors (below T1, shared trunk — split at destination row)
+  // Fibers + Ractors — 'bottom': same vertical at x=123, clear of all thread/obs cols
   ['thread_1',        'fiber_scheduler', 'bottom'],
   ['thread_1',        'ractors',         'bottom'],
-  // Thread serpentine
-  ['thread_1',        'thread_2'],
+  // Thread serpentine — 'bottom': T1 to T2 goes straight down then hooks right into PA col
+  ['thread_1',        'thread_2',        'bottom'],
   ...Array.from({ length: MAX_THREADS - 2 }, (_, i) => [`thread_${i + 2}`, `thread_${i + 3}`]),
-  // Marketing chain (A column, downward)
-  ['thread_1',        'marketing_1'],
+  // Marketing chain — 'bottom': straight down then hook left, clears row5 Tracing/Chart
+  ['thread_1',        'marketing_1',     'bottom'],
   ['marketing_1',     'marketing_2'],
   ['marketing_2',     'marketing_3'],
   ['marketing_3',     'marketing_4'],
@@ -122,21 +145,15 @@ const TREE_EDGES = [
 ];
 
 function edgePath(from, to, splitMode = 'mid') {
-  // Same row
   if (from.y === to.y) {
     const hy = from.y + NODE_W / 2;
-    if (from.x > to.x) {
-      // Leftward: exit left edge of from, enter right edge of to
-      return `M ${from.x} ${hy} H ${to.x + NODE_W}`;
-    }
-    // Rightward: exit right edge of from, enter left edge of to
+    if (from.x > to.x) return `M ${from.x} ${hy} H ${to.x + NODE_W}`;
     return `M ${from.x + NODE_W} ${hy} H ${to.x}`;
   }
 
   const goingUp = to.y < from.y;
 
   if (goingUp && to.x < from.x) {
-    // Going up-left: exit from left-mid of from-node to avoid routing through spine
     const sx = from.x;
     const sy = from.y + NODE_W / 2;
     const ex = to.x + NODE_W / 2;
@@ -144,27 +161,27 @@ function edgePath(from, to, splitMode = 'mid') {
     return `M ${sx} ${sy} H ${ex} V ${ey}`;
   }
 
+  if (goingUp && to.x > from.x) {
+    const sx = from.x + NODE_W;
+    const sy = from.y + NODE_W / 2;
+    const ex = to.x + NODE_W / 2;
+    const ey = to.y + NODE_W;
+    return `M ${sx} ${sy} H ${ex} V ${ey}`;
+  }
+
   const x1 = from.x + NODE_W / 2;
-  const y1 = goingUp ? from.y           : from.y + NODE_W;
+  const y1 = goingUp ? from.y         : from.y + NODE_W;
   const x2 = to.x   + NODE_W / 2;
-  const y2 = goingUp ? to.y + NODE_W   : to.y;
+  const y2 = goingUp ? to.y + NODE_W  : to.y;
   if (Math.abs(x1 - x2) < 2) return `M ${x1} ${y1} V ${y2}`;
   if (splitMode === 'bottom') {
     const midDestY = to.y + NODE_W / 2;
-    // Enter from the side at the vertical center of the destination node
     const edgeX = x2 < x1 ? to.x + NODE_W : to.x;
     return `M ${x1} ${y1} V ${midDestY} H ${edgeX}`;
   }
   const midY = Math.round((y1 + y2) / 2);
   return `M ${x1} ${y1} V ${midY} H ${x2} V ${y2}`;
 }
-
-const TREE_W = COL_MKT + NODE_W + 4;
-const lastThreadRow = MAX_THREADS > 1
-  ? 7 + Math.floor((MAX_THREADS - 2) / 6) * 2 + ((MAX_THREADS - 2) % 6 >= 3 ? 1 : 0)
-  : 7;
-const marketingLastRow = 12;
-const TREE_H = 8 + Math.max(lastThreadRow, marketingLastRow) * STEP + NODE_W + 16;
 
 export class InfoPanel {
   constructor(onBuyThread, onBuyUpgrade, onBuyProcess, onRemove) {
@@ -192,7 +209,6 @@ export class InfoPanel {
 
     const byId = Object.fromEntries(items.map(u => [u.id, u]));
 
-    // A node is visible if it is owned, directly adjacent to an owned node, or a root (no parent edge)
     const ownedIds = new Set(items.filter(u => u.owned).map(u => u.id));
     const visibleIds = new Set(ownedIds);
     for (const [fromId, toId] of TREE_EDGES) {
