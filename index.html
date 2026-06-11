@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ruby Concurrency Simulator</title>
+  <script type="module" crossorigin src="./assets/index-RC92PU-_.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DpIxv3u-.css">
+</head>
+<body>
+  <header id="hdr">
+    <div class="logo">● Ruby Concurrency</div>
+    <div class="stat"><div class="stat-label">Money</div><div class="stat-value" id="hdr-money">$0</div></div>
+    <div class="stat"><div class="stat-label">GVL wait</div><div class="stat-value" id="hdr-gvl" style="color:#9371e6">—</div></div>
+    <div class="stat"><div class="stat-label">Req / min</div><div class="stat-value" id="hdr-rps" style="color:#3fb950">—</div></div>
+    <div class="stat"><div class="stat-label">Req received / min</div><div class="stat-value" id="hdr-incoming" style="color:#58a6ff">—</div></div>
+    <button id="pause-btn" class="pause-btn" title="Pause (Space)">⏸ Pause</button>
+  </header>
+
+  <div class="game-layout">
+    <!-- Left: incoming queue (HTML) -->
+    <div class="side-panel" id="queue-panel">
+      <div class="panel-title">Incoming requests</div>
+      <div id="queue-list"></div>
+    </div>
+
+    <!-- Center: threads + monitor -->
+    <div id="game-container" style="position:relative">
+      <div id="pause-overlay" style="display:none"><div class="pause-badge">⏸ PAUSED — press Space to resume</div></div>
+      <div id="oom-modal" style="display:none">
+        <div class="oom-modal-box">
+          <div class="oom-modal-icon">💥</div>
+          <div class="oom-modal-title">Out of Memory — Server Crashed</div>
+          <div class="oom-modal-body">
+            Your server ran out of RAM. All in-flight requests were dropped and the server is restarting.
+          </div>
+          <div class="oom-modal-section-title">What happened?</div>
+          <div class="oom-modal-body">
+            Each thread, process, and active request consumes memory. When total usage exceeds your RAM limit, Ruby's allocator fails and the process crashes — there's no graceful degradation.
+          </div>
+          <div class="oom-modal-section-title">Solutions</div>
+          <ul class="oom-modal-list">
+            <li>Upgrade your VPS to get more RAM</li>
+            <li>Remove threads or processes to lower baseline memory</li>
+            <li>Reduce traffic until in-flight requests finish before scaling</li>
+            <li>Use fibers — they cost ~0.5 MB each vs 18 MB per thread</li>
+          </ul>
+          <button id="oom-resume-btn" class="oom-modal-btn">Resume</button>
+        </div>
+      </div>
+      <div id="ractors-modal" style="display:none">
+        <div class="ractors-modal-box">
+          <div class="oom-modal-icon">⚗️</div>
+          <div class="ractors-modal-title">Ractors — "This is Fine" Edition</div>
+          <div class="oom-modal-body">
+            In this game, Ractors represent a <strong>fully working version</strong> of the feature. In the real world, it's a different story.
+          </div>
+          <div class="oom-modal-section-title">What you're buying</div>
+          <ul class="oom-modal-list">
+            <li>No GVL contention between threads — ever</li>
+            <li>Every CPU phase runs in true parallel across all cores</li>
+            <li>The "wow moment" Ruby devs have been waiting for</li>
+          </ul>
+          <div class="oom-modal-section-title">The real world in 2025</div>
+          <ul class="oom-modal-list">
+            <li>74 open bugs — segfaults, deadlocks, undefined behavior</li>
+            <li>JSON parsing gets 2.5× SLOWER (global string interning lock)</li>
+            <li>Most gems break instantly — mutable constants raise IsolationError</li>
+            <li>Rails is fully incompatible. ActiveRecord is fully incompatible.</li>
+          </ul>
+          <div class="oom-modal-body" style="margin-top:4px">
+            The $5,000 price reflects the years of engineering work still needed before Ractors are production-ready.
+          </div>
+          <div class="ractors-modal-actions">
+            <button id="ractors-cancel-btn" class="ractors-modal-btn-cancel">Cancel</button>
+            <button id="ractors-confirm-btn" class="ractors-modal-btn-confirm">Buy for $5,000 — I understand the tradeoffs</button>
+          </div>
+        </div>
+      </div>
+      <div id="threads-area"><div id="threads-inner"></div></div>
+      <div id="monitor-area" style="display:none">
+        <div id="monitor-resize-handle"><span>Monitoring</span></div>
+        <div id="monitor-canvas-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Right: shop (HTML) -->
+    <div class="side-panel" id="info-panel">
+      <div class="panel-title">Shop</div>
+      <div id="shop"></div>
+    </div>
+  </div>
+
+</body>
+</html>
