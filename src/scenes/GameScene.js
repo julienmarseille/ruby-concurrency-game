@@ -1,4 +1,4 @@
-import { EVENTS, PROCESS_COST, THREAD_COST } from '../config.js';
+import { EVENTS } from '../config.js';
 import { UPGRADES }             from '../UpgradeConfig.js';
 import { GameEvents }           from '../core/GameEvents.js';
 import { GameTimer }            from '../core/GameTimer.js';
@@ -55,10 +55,13 @@ export class GameScene {
 
     document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
     document.getElementById('oom-resume-btn').addEventListener('click', () => this._dismissOomModal());
+    document.getElementById('ractors-cancel-btn').addEventListener('click', () => this._dismissRactorsModal());
+    document.getElementById('ractors-confirm-btn').addEventListener('click', () => this._confirmRactors());
     document.addEventListener('keydown', e => {
       if (e.code === 'Space' && e.target === document.body) {
         e.preventDefault();
         if (document.getElementById('oom-modal').style.display !== 'none') return;
+        if (document.getElementById('ractors-modal').style.display !== 'none') return;
         this.togglePause();
       }
     });
@@ -70,8 +73,7 @@ export class GameScene {
       .on(EVENTS.THREAD_REMOVED,        t                 => this._onThreadRemoved(t))
       .on(EVENTS.PROCESS_ADDED,         proc              => this._onProcessAdded(proc))
       .on(EVENTS.REQUEST_SPAWNED,       ()                => this._queue.update(this.gs.queue))
-      .on(EVENTS.REQUEST_ASSIGNED,      ({ thread, req, isFiber }) => this._onAssigned(thread, req, isFiber))
-      .on(EVENTS.REQUEST_COMPLETED,     ()                => this._refreshShop())
+      .on(EVENTS.REQUEST_ASSIGNED,      ({ thread, req })          => this._onAssigned(thread, req))
       .on(EVENTS.UPGRADE_UNLOCKED,      id                => this._onUpgradeUnlocked(id))
       .on(EVENTS.THREADS_REDISTRIBUTED, n                 => InfoPanel.flash(`Threads redistributed across ${n} processes`))
       .on(EVENTS.OOM_CRASH,             ()                => this._onOomCrash())
@@ -111,23 +113,24 @@ export class GameScene {
       this._timer.update(deltaMS, {
         onTick:         () => { this.gs.step(); this._monitor.sampleTrace(this.gs.threads); },
         onSpawn:        () => this.gs.autoSpawnRequests(),
-        onStatsRefresh: () => this._header.update(this.gs),
+        onStatsRefresh: () => { this._header.update(this.gs); this._refreshShop(); },
       });
     }
 
     this._threads.update(this.gs.threads, this._paused ? 0 : deltaMS, this._paused ? this._frozenNow : null);
     this._monitor.update(this.gs);
-    this._queue.update(this.gs.queue);
   }
 
   _onThreadAdded(thread) {
     this._threads.addCard(thread);
+    if (this.gs.ractorsEnabled) this._threads.addRactorHeader(thread.id);
     this._monitor.addThread(thread);
     this._refreshShop();
   }
 
   _onThreadRemoved(thread) {
     this._threads.removeCard(thread.id);
+    this._threads.removeRactorHeader(thread.id);
     this._monitor.removeThread(thread.id);
     this._refreshShop();
   }
@@ -138,13 +141,9 @@ export class GameScene {
     this._refreshShop();
   }
 
-  _onAssigned(thread, req, isFiber = false) {
-    if (isFiber) {
-      this._queue.removeItem(req.id);
-    } else {
-      this._threads.spawnParticleFor(thread, req, this._queue.getElement(req.id));
-      this._queue.removeItem(req.id);
-    }
+  _onAssigned(thread, req) {
+    this._threads.spawnParticleFor(thread, req, this._queue.getElement(req.id));
+    this._queue.removeItem(req.id);
   }
 
   _onUpgradeUnlocked(id) {
@@ -160,6 +159,11 @@ export class GameScene {
       this._monitor.setFibersEnabled(true);
       requestAnimationFrame(() => this._threads.relayout());
     }
+    if (id === 'ractors') {
+      for (const t of this.gs.threads) this._threads.addRactorHeader(t.id);
+      this._threads.enableRactors();
+      requestAnimationFrame(() => this._threads.relayout());
+    }
     this._refreshShop();
   }
 
@@ -173,14 +177,35 @@ export class GameScene {
 
   _buyThread() {
     if (!this.gs.addThread(false)) {
-      InfoPanel.flash(this.gs.money < THREAD_COST ? 'Not enough money!' : 'Not enough RAM!');
+      InfoPanel.flash(this.gs.money < this.gs.threadCost ? 'Not enough money!' : 'Not enough RAM!');
       return;
     }
     this._refreshShop();
   }
 
   _buyUpgrade(id) {
+    if (id === 'ractors') {
+      if (this.gs.money < UPGRADES[id].cost) { InfoPanel.flash('Not enough money!'); return; }
+      this._showRactorsModal();
+      return;
+    }
     if (!this.gs.buyUpgrade(id)) InfoPanel.flash('Not enough money!');
+  }
+
+  _showRactorsModal() {
+    if (!this._paused) this.togglePause();
+    document.getElementById('ractors-modal').style.display = 'flex';
+  }
+
+  _dismissRactorsModal() {
+    document.getElementById('ractors-modal').style.display = 'none';
+    if (this._paused) this.togglePause();
+  }
+
+  _confirmRactors() {
+    document.getElementById('ractors-modal').style.display = 'none';
+    if (this._paused) this.togglePause();
+    this.gs.buyUpgrade('ractors');
   }
 
   _buyProcess(id) {
@@ -189,7 +214,7 @@ export class GameScene {
       return;
     }
     if (!this.gs.addProcess()) {
-      const msg = this.gs.money < PROCESS_COST          ? 'Not enough money!'
+      const msg = this.gs.money < this.gs.nextProcessCost ? 'Not enough money!'
                 : this.gs.processes.length >= this.gs.coreCount ? 'Not enough vCPU — upgrade your VPS!'
                 : 'Not enough RAM!';
       InfoPanel.flash(msg);

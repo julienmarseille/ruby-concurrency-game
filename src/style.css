@@ -138,7 +138,14 @@ header#hdr { background: var(--bg-card); border-bottom: 1px solid var(--border);
 
 .alert-flash { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); background: var(--danger); color: white; padding: 6px 16px; border-radius: var(--radius-md); font-size: 11px; z-index: 100; animation: fIn 0.2s ease, fOut 0.4s ease 1.6s forwards; }
 
-#oom-modal { position: absolute; inset: 0; background: rgba(13, 17, 23, 0.82); display: flex; align-items: center; justify-content: center; z-index: 60; }
+#oom-modal, #ractors-modal { position: absolute; inset: 0; background: rgba(13, 17, 23, 0.82); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.ractors-modal-box { background: var(--bg-card); border: 1px solid #34d399; border-radius: var(--radius-lg); padding: 28px 32px; max-width: 460px; width: 90%; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 40px rgba(52, 211, 153, 0.15); }
+.ractors-modal-title { font-size: 16px; font-weight: bold; color: #34d399; text-align: center; }
+.ractors-modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+.ractors-modal-btn-cancel { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 9px 20px; font-size: 12px; font-family: 'Courier New', monospace; color: var(--text-dim); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+.ractors-modal-btn-cancel:hover { border-color: var(--text-dim); color: var(--text); }
+.ractors-modal-btn-confirm { background: #34d399; border: none; border-radius: var(--radius-md); padding: 9px 20px; font-size: 12px; font-family: 'Courier New', monospace; color: #0d1117; cursor: pointer; font-weight: bold; transition: opacity 0.15s; }
+.ractors-modal-btn-confirm:hover { opacity: 0.85; }
 .oom-modal-box { background: var(--bg-card); border: 1px solid var(--danger); border-radius: var(--radius-lg); padding: 28px 32px; max-width: 420px; width: 90%; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 8px 40px rgba(248, 81, 73, 0.25); }
 .oom-modal-icon { font-size: 32px; text-align: center; }
 .oom-modal-title { font-size: 16px; font-weight: bold; color: var(--danger); text-align: center; }

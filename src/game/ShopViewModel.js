@@ -1,5 +1,5 @@
 import { UPGRADES } from '../UpgradeConfig.js';
-import { THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, MAX_THREADS } from '../config.js';
+import { THREAD_MEM, PROCESS_MEM, threadCostFor, processCostFor, MAX_THREADS } from '../config.js';
 
 export class ShopViewModel {
   compute(gs) {
@@ -15,9 +15,11 @@ export class ShopViewModel {
     return [1, 2, 3, 4].map(n => {
       const owned   = gs.processes.length >= n;
       const isFree  = n === 1;
-      const cost    = isFree ? 0 : PROCESS_COST;
+      const cost    = isFree ? 0 : processCostFor(n);
       const ramOk   = n === 1 ? true : gs.memUsed + PROCESS_MEM <= gs.memMax;
       const coresOk = gs.coreCount >= n;
+      // Ractors replace multi-process CPU parallelism — block new process purchases
+      const blockedByRactors = gs.ractorsEnabled && !owned;
       return {
         id:         `process_${n}`,
         name:       n === 1 ? 'Start Server' : `Process ${n}`,
@@ -29,8 +31,8 @@ export class ShopViewModel {
         isProcess:  true,
         isFree,
         owned,
-        unlocked:   n === 1 ? gs.upgrades.has('nano_vps') : gs.processes.length >= n - 1,
-        affordable: owned || isFree || (gs.money >= cost && ramOk && coresOk),
+        unlocked:   blockedByRactors ? false : (n === 1 ? gs.upgrades.has('nano_vps') : gs.processes.length >= n - 1),
+        affordable: blockedByRactors ? false : (owned || isFree || (gs.money >= cost && ramOk && coresOk)),
         moneyPct:   cost > 0 ? Math.min(1, gs.money / cost) : 1,
         removable:  owned && n === gs.processes.length && n > 1,
       };
@@ -38,8 +40,9 @@ export class ShopViewModel {
   }
 
   _threadNodes(gs) {
-    const hasProcess1 = gs.processes.length >= 1;
-    const fiberMode   = gs.fibersEnabled;
+    const hasProcess1  = gs.processes.length >= 1;
+    const fiberMode    = gs.fibersEnabled;
+    const ractorMode   = gs.ractorsEnabled;
     return Array.from({ length: MAX_THREADS }, (_, i) => {
       const n     = i + 1;
       const owned = gs.threads.length >= n;
@@ -47,20 +50,35 @@ export class ShopViewModel {
       // In fiber mode: 1 thread per process (Falcon reactor), max 4 total
       const unlockedFiber  = owned || gs.processes.length >= n;
       const unlockedNormal = owned || (hasProcess1 && gs.threads.length >= n - 1);
+
+      let icon, desc;
+      if (fiberMode && ractorMode) {
+        icon = '⚗️';
+        desc = `Ractor + Fiber host — own GVL domain, multiplexes many fibers. Handles Process ${n}.`;
+      } else if (ractorMode) {
+        icon = '⚗️';
+        desc = `Ractor — own GVL domain, true CPU parallelism. No GVL_WAIT. Uses ${THREAD_MEM}MB RAM.`;
+      } else if (fiberMode) {
+        icon = '🪡';
+        desc = `Falcon reactor thread — 1 per process. Handles all fibers for Process ${n}.`;
+      } else {
+        icon = '🧵';
+        desc = `OS thread · shares the GVL · uses ${THREAD_MEM}MB RAM`;
+      }
+
+      const threadCost = threadCostFor(n);
       return {
         id:         `thread_${n}`,
         name:       `Thread ${n}`,
-        icon:       fiberMode ? '🪡' : '🧵',
-        desc:       fiberMode
-          ? `Falcon reactor thread — 1 per process. Handles all fibers for Process ${n}.`
-          : `OS thread · shares the GVL · uses ${THREAD_MEM}MB RAM`,
-        cost:       THREAD_COST,
+        icon,
+        desc,
+        cost:       threadCost,
         isThread:   true,
         isFree:     false,
         owned,
-        unlocked:   fiberMode ? unlockedFiber : unlockedNormal,
-        affordable: owned || (gs.money >= THREAD_COST && ramOk),
-        moneyPct:   Math.min(1, gs.money / THREAD_COST),
+        unlocked:   (fiberMode && !ractorMode) ? unlockedFiber : unlockedNormal,
+        affordable: owned || (gs.money >= threadCost && ramOk),
+        moneyPct:   Math.min(1, gs.money / threadCost),
         removable:  owned && n === gs.threads.length,
       };
     });

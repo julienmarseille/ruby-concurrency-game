@@ -60,13 +60,11 @@ export class ThroughputGraph extends DualPanelGraph {
       pts.push(x0 + LABEL_W + (data.length - 1) * tickW, y0 + GRAPH_H + 2);
       gfx.poly(pts).fill({ color: C.green, alpha: 0.15 });
 
+      gfx.moveTo(x0 + LABEL_W, y0 + GRAPH_H - (data[0] / yMax) * GRAPH_H + 2);
       for (let i = 1; i < data.length; i++) {
-        const x1 = x0 + LABEL_W + (i - 1) * tickW;
-        const x2 = x0 + LABEL_W + i * tickW;
-        const y1 = y0 + GRAPH_H - (data[i - 1] / yMax) * GRAPH_H + 2;
-        const y2 = y0 + GRAPH_H - (data[i]     / yMax) * GRAPH_H + 2;
-        gfx.moveTo(x1, y1).lineTo(x2, y2).stroke({ color: C.green, width: 1.5 });
+        gfx.lineTo(x0 + LABEL_W + i * tickW, y0 + GRAPH_H - (data[i] / yMax) * GRAPH_H + 2);
       }
+      gfx.stroke({ color: C.green, width: 1.5 });
     }
 
     const nowX = x0 + LABEL_W + data.length * tickW;

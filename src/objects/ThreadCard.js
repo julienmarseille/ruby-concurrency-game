@@ -18,20 +18,31 @@ const READY_ZONE_H    = READY_MAX_ROWS  * SECTION_H;  // 90px
 const FIXED_CARD_H    = CARD_H + ACTIVE_ZONE_H + DIVIDER_ROW_H + READY_ZONE_H; // 342px
 const TRANSITION_MS   = 250;
 
+const RACTOR_TEAL = 0x34d399;
+
 const STATUS_COLORS = {
-  idle:       { border: C.border,  badge: C.surface,       text: CH.textDim,      label: 'idle'     },
-  fiber_host: { border: C.border,  badge: C.surface,       text: CH.textDim,      label: 'fibers'   },
-  cpu:        { border: C.cpu,     badge: C.cardCpuBadge,  text: CH.cpu,          label: 'CPU'      },
-  io:         { border: C.io,      badge: C.cardIoBadge,   text: CH.io,           label: 'I/O'      },
-  gvl_wait:   { border: C.gvlWait, badge: C.cardGvlBadge,  text: CH.gvlWaitLight, label: 'GVL wait' },
+  idle:        { border: C.border    },
+  fiber_host:  { border: C.border    },
+  ractor_host: { border: RACTOR_TEAL },
+  cpu:         { border: C.cpu       },
+  io:          { border: C.io        },
+  gvl_wait:    { border: C.gvlWait   },
 };
 
 const FIBER_STATUS_COLORS = {
-  cpu:      { border: C.cpu,    fill: C.cpu,    label: 'CPU'   },
-  io:       { border: C.io,     fill: C.io,     label: 'I/O'   },
-  queued:   { border: C.accent, fill: C.accent, label: 'ready' },
-  incoming: { border: C.border, fill: C.surface, label: ''     },
-  idle:     { border: C.border, fill: C.surface, label: ''     },
+  cpu:      { border: C.cpu,       fill: C.cpu,       label: 'CPU'   },
+  io:       { border: C.io,        fill: C.io,        label: 'I/O'   },
+  queued:   { border: C.accent,    fill: C.accent,    label: 'ready' },
+  incoming: { border: C.border,    fill: C.surface,   label: ''      },
+  idle:     { border: C.border,    fill: C.surface,   label: ''      },
+};
+
+const FIBER_STATUS_COLORS_RACTOR = {
+  cpu:      { border: RACTOR_TEAL, fill: RACTOR_TEAL, label: 'CPU'   },
+  io:       { border: C.io,        fill: C.io,        label: 'I/O'   },
+  queued:   { border: C.accent,    fill: C.accent,    label: 'ready' },
+  incoming: { border: C.border,    fill: C.surface,   label: ''      },
+  idle:     { border: C.border,    fill: C.surface,   label: ''      },
 };
 
 const PHASE_COLORS = { cpu: C.cpu, io: C.io };
@@ -53,11 +64,6 @@ export class ThreadCard extends Container {
     this._nameText.x = CARD_PAD;
     this._nameText.y = (CARD_H - 11) / 2;
     this.addChild(this._nameText);
-
-    this._badgeBg   = new Graphics();
-    this._badgeText = new Text({ text: '', style: { ...TEXT_STYLES.bodyDim } });
-    this.addChild(this._badgeBg);
-    this.addChild(this._badgeText);
 
     this._progBg   = new Graphics();
     this._progFill = new Graphics();
@@ -135,14 +141,18 @@ export class ThreadCard extends Container {
       this._particleArrivalAt = 0;
     }
 
-    const effectiveStatus = (displayStatus === 'idle' && t.fiberHost) ? 'fiber_host' : displayStatus;
-    const sc              = STATUS_COLORS[effectiveStatus] ?? STATUS_COLORS.idle;
-    const W               = this._w;
-    const prevStatus      = this._lastStatus;
+    const effectiveStatus = (displayStatus === 'idle' && t.fiberHost) ? 'fiber_host'
+                          : displayStatus;
+    const sc          = STATUS_COLORS[effectiveStatus] ?? STATUS_COLORS.idle;
+    const borderColor = t.ractorHost ? RACTOR_TEAL : sc.border;
+    const W           = this._w;
+    const prevStatus  = this._lastStatus;
 
-    this.alpha = t.fiberHost ? 1.0 : (displayStatus === 'idle' ? 0.35 : 1.0);
+    this.alpha = (t.fiberHost || t.ractorHost) ? 1.0 : (displayStatus === 'idle' ? 0.35 : 1.0);
 
     const totalH = this.cardHeight;
+
+    if (this._nameText.text !== t.label) this._nameText.text = t.label;
 
     if (effectiveStatus !== prevStatus || W !== this._lastW) {
       this._lastStatus = effectiveStatus;
@@ -151,16 +161,8 @@ export class ThreadCard extends Container {
       this._bg.clear();
       this._bg.roundRect(0, 0, W, totalH, SPACING.sm)
         .fill({ color: C.card })
-        .stroke({ color: sc.border, width: 1 });
+        .stroke({ color: borderColor, width: 1 });
 
-      const badgeW = sc.label.length * 6.2 + SPACING.lg;
-      const badgeX = W - CARD_PAD - badgeW;
-      this._badgeBg.clear();
-      this._badgeBg.roundRect(badgeX, (CARD_H - 18) / 2, badgeW, 18, SPACING.xs).fill({ color: sc.badge });
-      this._badgeText.text       = sc.label;
-      this._badgeText.style.fill = sc.text;
-      this._badgeText.x          = badgeX + SPACING.sm;
-      this._badgeText.y          = (CARD_H - 10) / 2;
     }
 
     const isGvlWait = displayStatus === 'gvl_wait';
@@ -183,8 +185,7 @@ export class ThreadCard extends Container {
     this._progFill.clear();
 
     if (!isIncoming && def) {
-      const badgeW = sc.label.length * 6.2 + SPACING.lg;
-      this._drawLifecycleBar(t, def, now, W, badgeW);
+      this._drawLifecycleBar(t, def, now, W);
     }
 
     if (t.fiberHost) {
@@ -340,7 +341,8 @@ export class ThreadCard extends Container {
   }
 
   _drawFiberRow(gfx, fiber, y0, W, tAlpha, now) {
-    const sc = FIBER_STATUS_COLORS[fiber.status] ?? FIBER_STATUS_COLORS.idle;
+    const palette = this._thread.ractorHost ? FIBER_STATUS_COLORS_RACTOR : FIBER_STATUS_COLORS;
+    const sc = palette[fiber.status] ?? palette.idle;
 
     gfx.roundRect(CARD_PAD, y0, W - CARD_PAD * 2, FIBER_ROW_H, 2)
       .fill({ color: C.card, alpha: tAlpha })
@@ -402,9 +404,9 @@ export class ThreadCard extends Container {
     gfx.rect(cursorX - 1, barY, 2, barH).fill({ color: cursorCol, alpha: 0.9 * tAlpha });
   }
 
-  _drawLifecycleBar(t, def, now, W, badgeW) {
+  _drawLifecycleBar(t, def, now, W) {
     const barX   = CARD_PAD + NAME_W;
-    const barEnd = W - CARD_PAD - badgeW - SPACING.sm;
+    const barEnd = W - CARD_PAD;
     const progW  = barEnd - barX;
     if (progW <= 0) return;
 

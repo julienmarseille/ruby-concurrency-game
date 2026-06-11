@@ -19,6 +19,7 @@ export class TraceGraph {
     this._width       = width;
     this._buffers     = {};
     this._tickCount   = 0;
+    this._dirty       = false;
     this._threadOrder = [];
     this._visible     = true;
     this._threadLabels = {};
@@ -100,9 +101,12 @@ export class TraceGraph {
       buf.push(status);
       if (buf.length > TRACE_TICKS) buf.shift();
     }
+    this._dirty = true;
   }
 
   draw(threads) {
+    if (!this._dirty) return;
+    this._dirty = false;
     const gfx   = this._gfx;
     const W     = this._width;
     const drawW = W - LABEL_W - PAD;
@@ -112,21 +116,27 @@ export class TraceGraph {
     gfx.clear();
     gfx.rect(x0, y0, W - PAD, threads.length * ROW_H + 4).fill({ color: C.bg });
 
-    const tickW = drawW / TRACE_TICKS;
+    const tickW      = drawW / TRACE_TICKS;
+    const totalH     = threads.length * ROW_H;
+    const GRID_STEPS = 10;
 
     threads.forEach((t, row) => {
       const buf = this._buffers[t.id] || [];
       const ry  = y0 + row * ROW_H + 2;
 
+      const offset = TRACE_TICKS - buf.length;
       buf.forEach((status, i) => {
         const color = COLORS[status] ?? COLORS.idle;
-        gfx.rect(x0 + LABEL_W + i * tickW, ry, Math.ceil(tickW) + 0.5, ROW_H - 4).fill({ color });
+        gfx.rect(x0 + LABEL_W + (offset + i) * tickW, ry, Math.ceil(tickW) + 0.5, ROW_H - 4).fill({ color });
       });
-
-      const nowX = x0 + LABEL_W + buf.length * tickW;
-      gfx.moveTo(nowX, ry).lineTo(nowX, ry + ROW_H - 4)
-        .stroke({ color: C.accent, width: 1, alpha: 0.3 });
     });
+
+    for (let step = 1; step < GRID_STEPS; step++) {
+      const lx    = x0 + LABEL_W + (drawW / GRID_STEPS) * step;
+      const isMid = step === GRID_STEPS / 2;
+      gfx.moveTo(lx, y0).lineTo(lx, y0 + totalH + 4)
+        .stroke({ color: isMid ? 0xff4444 : C.border, width: isMid ? 2.5 : 1.5, alpha: isMid ? 0.8 : 0.45 });
+    }
 
     gfx.moveTo(x0 + LABEL_W, y0).lineTo(x0 + LABEL_W, y0 + threads.length * ROW_H + 4)
       .stroke({ color: C.border, width: 1 });

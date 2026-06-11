@@ -10,9 +10,18 @@ export const MEM_MEDIUM       = 2048;
 export const MEM_LARGE        = 4096;
 export const THREAD_MEM       = 18;
 export const PROCESS_MEM      = 50;
-export const THREAD_COST      = 100;
-export const PROCESS_COST     = 150;
-export const BASE_SPAWN_RATE  = 1;
+// Thread costs escalate to discourage over-buying before traffic arrives
+export const THREAD_COSTS  = [100, 100, 100, 150, 150, 150, 200, 200, 200, 250, 250, 250];
+export function threadCostFor(n) {
+  return THREAD_COSTS[Math.min(n - 1, THREAD_COSTS.length - 1)];
+}
+
+// Process costs escalate per additional process (process_1 is free)
+export const PROCESS_COSTS = [0, 0, 200, 300, 400];
+export function processCostFor(n) {
+  return PROCESS_COSTS[Math.min(n, PROCESS_COSTS.length - 1)] ?? 400;
+}
+export const BASE_SPAWN_RATE  = 0.5;
 export const FIBER_MEM        = 0.5;
 export const MAX_THREADS      = 12;
 
@@ -53,6 +62,7 @@ export const LAYERS = {
   TRACE_LABELS:  4,
   CARDS:         5,
   TRACE_META:    6,
+  RACTOR_HDR:    8,
   PROCESS_HDR:   14,
   PIPES:         7,
   PARTICLES:     10,
@@ -138,7 +148,7 @@ export const REQ_TYPES = {
       { type: 'io',  ms: 4800, label: 'SELECT query'   },
       { type: 'cpu', ms: 800,  label: 'Serialize JSON' },
     ],
-    reward: 10,
+    reward: 15,
   },
 
   DB_REQUEST_HEAVY_START: {
@@ -154,7 +164,7 @@ export const REQ_TYPES = {
       { type: 'io',  ms: 4800, label: 'SELECT query'      },
       { type: 'cpu', ms: 1400, label: 'Process & respond' },
     ],
-    reward: 10,
+    reward: 15,
   },
 
   DB_REQUEST_FRAGMENTED: {
@@ -174,7 +184,7 @@ export const REQ_TYPES = {
       { type: 'io',  ms: 1600, label: 'Load relations' },
       { type: 'cpu', ms: 400,  label: 'Serialize'      },
     ],
-    reward: 10,
+    reward: 18,
   },
 
   MIXED: {
@@ -192,7 +202,7 @@ export const REQ_TYPES = {
       { type: 'io',  ms: 2000, label: 'DB write'       },
       { type: 'cpu', ms: 2000, label: 'Respond'        },
     ],
-    reward: 18,
+    reward: 27,
   },
 
   REPORT: {
@@ -210,6 +220,6 @@ export const REQ_TYPES = {
       { type: 'io',  ms: 400,  label: 'Write to disk'   },
       { type: 'cpu', ms: 2000, label: 'Compress & send' },
     ],
-    reward: 30,
+    reward: 45,
   },
 };

@@ -52,13 +52,16 @@ const TREE_NODES = [
   { id: 'marketing_2',      x: COL_OBS,    y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'II',      cat: 'marketing' },
   { id: 'mixed_requests',   x: COL_TRAFFIC,y: 8 + STEP * 8,  tooltipAlign: 'left',   short: 'Mixed',   cat: 'traffic'   },
 
-  // ── Row 9: marketing III (A), Fibers (D)
+  // ── Row 9: marketing III (A)
   { id: 'marketing_3',      x: COL_OBS,    y: 8 + STEP * 9,  tooltipAlign: 'left',   short: 'III',     cat: 'marketing' },
-  { id: 'fiber_scheduler',  x: COL_CENTER, y: 8 + STEP * 9,  tooltipAlign: 'center', short: 'Fibers',  cat: 'runtime'   },
 
   // ── Row 10: marketing IV (A), PDF (C)
   { id: 'marketing_4',      x: COL_OBS,    y: 8 + STEP * 10, tooltipAlign: 'left',   short: 'IV',      cat: 'marketing' },
   { id: 'report_requests',  x: COL_TRAFFIC,y: 8 + STEP * 10, tooltipAlign: 'left',   short: 'PDF',     cat: 'traffic'   },
+
+  // ── Row 11: Fibers (D), Ractors (E) — same level, independent paths from thread_1
+  { id: 'fiber_scheduler',  x: COL_TRAFFIC,y: 8 + STEP * 12, tooltipAlign: 'left',   short: 'Fibers',  cat: 'runtime'   },
+  { id: 'ractors',          x: COL_MR,     y: 8 + STEP * 12, tooltipAlign: 'right',  short: 'Ractors', cat: 'runtime'   },
 
   // ── Row 12: marketing V (A)
   { id: 'marketing_5',      x: COL_OBS,    y: 8 + STEP * 12, tooltipAlign: 'left',   short: 'V',       cat: 'marketing' },
@@ -104,8 +107,9 @@ const TREE_EDGES = [
   // Traffic (below T1)
   ['thread_1',        'mixed_requests'],
   ['mixed_requests',  'report_requests'],
-  // Fibers (below T1)
-  ['thread_1',        'fiber_scheduler'],
+  // Fibers + Ractors (below T1, shared trunk — split at destination row)
+  ['thread_1',        'fiber_scheduler', 'bottom'],
+  ['thread_1',        'ractors',         'bottom'],
   // Thread serpentine
   ['thread_1',        'thread_2'],
   ...Array.from({ length: MAX_THREADS - 2 }, (_, i) => [`thread_${i + 2}`, `thread_${i + 3}`]),
@@ -117,7 +121,7 @@ const TREE_EDGES = [
   ['marketing_4',     'marketing_5'],
 ];
 
-function edgePath(from, to) {
+function edgePath(from, to, splitMode = 'mid') {
   // Same row
   if (from.y === to.y) {
     const hy = from.y + NODE_W / 2;
@@ -145,6 +149,12 @@ function edgePath(from, to) {
   const x2 = to.x   + NODE_W / 2;
   const y2 = goingUp ? to.y + NODE_W   : to.y;
   if (Math.abs(x1 - x2) < 2) return `M ${x1} ${y1} V ${y2}`;
+  if (splitMode === 'bottom') {
+    const midDestY = to.y + NODE_W / 2;
+    // Enter from the side at the vertical center of the destination node
+    const edgeX = x2 < x1 ? to.x + NODE_W : to.x;
+    return `M ${x1} ${y1} V ${midDestY} H ${edgeX}`;
+  }
   const midY = Math.round((y1 + y2) / 2);
   return `M ${x1} ${y1} V ${midY} H ${x2} V ${y2}`;
 }
@@ -182,7 +192,20 @@ export class InfoPanel {
 
     const byId = Object.fromEntries(items.map(u => [u.id, u]));
 
-    const svgEdges = TREE_EDGES.map(([fromId, toId]) => {
+    // A node is visible if it is owned, directly adjacent to an owned node, or a root (no parent edge)
+    const ownedIds = new Set(items.filter(u => u.owned).map(u => u.id));
+    const visibleIds = new Set(ownedIds);
+    for (const [fromId, toId] of TREE_EDGES) {
+      if (ownedIds.has(fromId)) visibleIds.add(toId);
+      if (ownedIds.has(toId))   visibleIds.add(fromId);
+    }
+    const allChildIds = new Set(TREE_EDGES.map(([, toId]) => toId));
+    for (const node of TREE_NODES) {
+      if (!allChildIds.has(node.id)) visibleIds.add(node.id);
+    }
+
+    const svgEdges = TREE_EDGES.map(([fromId, toId, splitMode]) => {
+      if (!visibleIds.has(fromId) || !visibleIds.has(toId)) return '';
       const fromPos  = TREE_NODES.find(n => n.id === fromId);
       const toPos    = TREE_NODES.find(n => n.id === toId);
       if (!fromPos || !toPos) return '';
@@ -191,7 +214,7 @@ export class InfoPanel {
       const done   = fromItem?.owned && toItem?.owned;
       const active = fromItem?.owned && toItem && !toItem.owned;
       const cls    = done ? 'tree-edge tree-edge--done' : active ? 'tree-edge tree-edge--active' : 'tree-edge';
-      return `<path class="${cls}" d="${edgePath(fromPos, toPos)}" fill="none"/>`;
+      return `<path class="${cls}" d="${edgePath(fromPos, toPos, splitMode)}" fill="none"/>`;
     }).join('');
 
     const svg = `<svg class="tree-svg" width="${TREE_W}" height="${TREE_H}">${svgEdges}</svg>`;
@@ -199,6 +222,7 @@ export class InfoPanel {
     const nodes = TREE_NODES.map(nodePos => {
       const item = byId[nodePos.id];
       if (!item) return '';
+      if (!visibleIds.has(nodePos.id)) return '';
 
       let stateCls = '';
       let icon     = item.icon ?? '🧵';

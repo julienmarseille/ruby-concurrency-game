@@ -1,11 +1,14 @@
 import { ThreadCard }    from '../objects/ThreadCard.js';
 import { ProcessHeader } from '../objects/ProcessHeader.js';
+import { RactorHeader }  from '../objects/RactorHeader.js';
+import { ThreadLegend }  from '../objects/ThreadLegend.js';
 import { PipeSystem }    from '../objects/PipeSystem.js';
 import { PAD, PIPE_W, PIPE_ENTRY_Y, PIPE_TRAVEL_MS, SPACING } from '../config.js';
 
-const CARDS_START_Y = PIPE_ENTRY_Y + SPACING.xl + SPACING.sm;
-const CARD_GAP      = SPACING.sm;
-const GROUP_GAP     = SPACING.xl;
+const CARDS_START_Y  = PIPE_ENTRY_Y + SPACING.xl + SPACING.sm;
+const CARD_GAP       = SPACING.sm;
+const GROUP_GAP      = SPACING.xl;
+const RACTOR_INDENT  = 10;
 
 export class ThreadsSection {
   constructor(threadsApp) {
@@ -13,13 +16,17 @@ export class ThreadsSection {
     this._stage   = threadsApp.stage;
     this._areaEl  = document.getElementById('threads-area');
     this._innerEl = document.getElementById('threads-inner');
-    this._cards   = [];
-    this._headers = [];
+    this._cards          = [];
+    this._headers        = [];
+    this._ractorHeaders  = []; // [{ threadId, header }]
     this._isDragging = false;
 
     this._pipes = new PipeSystem(PIPE_W / 2, PIPE_ENTRY_Y);
     this._pipes.addTo(this._stage);
     this._processMonitorEnabled = false;
+
+    this._legend = new ThreadLegend(PIPE_W, 0);
+    this._stage.addChild(this._legend);
 
     this._resizeCanvas();
     new ResizeObserver(() => { if (!this._isDragging) this._resizeAndLayout(); })
@@ -64,6 +71,24 @@ export class ThreadsSection {
     this._resizeAndLayout();
   }
 
+  addRactorHeader(threadId) {
+    const w      = this._app.screen.width - PIPE_W - PAD;
+    const header = new RactorHeader(PIPE_W, 0, w, threadId);
+    this._stage.addChild(header);
+    this._ractorHeaders.push({ threadId, header });
+    this._resizeAndLayout();
+  }
+
+  removeRactorHeader(threadId) {
+    const idx = this._ractorHeaders.findIndex(r => r.threadId === threadId);
+    if (idx === -1) return;
+    const { header } = this._ractorHeaders[idx];
+    this._stage.removeChild(header);
+    header.destroy();
+    this._ractorHeaders.splice(idx, 1);
+    this._resizeAndLayout();
+  }
+
   spawnParticleFor(thread, req, queueItemEl) {
     const card = this._cards.find(c => c.threadId === thread.id);
     if (!card || !queueItemEl) return;
@@ -85,6 +110,10 @@ export class ThreadsSection {
     const now = frozenNow ?? performance.now();
     for (const card of this._cards) card.update(now);
     for (const { header } of this._headers) header.update(threads, this._processMonitorEnabled);
+    for (const { threadId, header } of this._ractorHeaders) {
+      const thread = threads.find(t => t.id === threadId);
+      if (thread) header.update(thread);
+    }
     this._pipes.draw(deltaMS);
   }
 
@@ -94,6 +123,10 @@ export class ThreadsSection {
 
   enableProcessMonitor() {
     this._processMonitorEnabled = true;
+  }
+
+  enableRactors() {
+    this._legend.setRactorsEnabled(true);
   }
 
   relayout() {
@@ -111,11 +144,17 @@ export class ThreadsSection {
   }
 
   _repositionCards() {
-    const W     = this._app.screen.width;
-    const cardW = W - PIPE_W - PAD;
+    const W           = this._app.screen.width;
+    const cardW       = W - PIPE_W - PAD;
+    const showRactors = this._ractorHeaders.length > 0;
+    const threadCardW = showRactors ? cardW - RACTOR_INDENT : cardW;
     let y = CARDS_START_Y;
 
     this._pipes.setTrunkX(PIPE_W / 2);
+
+    this._legend.x = PIPE_W;
+    this._legend.y = y;
+    y += this._legend.cardHeight + SPACING.sm;
 
     const headerPids = this._headers.map(h => h.processId);
     const cardPids   = this._cards.map(c => c.processId);
@@ -134,9 +173,20 @@ export class ThreadsSection {
 
       const procCards = this._cards.filter(c => c.processId === pid);
       for (const card of procCards) {
-        card.x = PIPE_W;
+        if (showRactors) {
+          const rh = this._ractorHeaders.find(r => r.threadId === card.threadId);
+          if (rh) {
+            rh.header.x = PIPE_W;
+            rh.header.y = y;
+            rh.header.setWidth(cardW);
+            y += rh.header.cardHeight;
+          }
+          card.x = PIPE_W + RACTOR_INDENT;
+        } else {
+          card.x = PIPE_W;
+        }
         card.y = y;
-        card.setWidth(cardW);
+        card.setWidth(threadCardW);
         y += card.cardHeight + CARD_GAP;
       }
 

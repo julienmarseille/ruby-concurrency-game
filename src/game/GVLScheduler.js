@@ -1,6 +1,13 @@
 export class GVLScheduler {
+  ractorsEnabled = false;
+
   stepThread(thread, phase, proc) {
     if (phase.type === 'cpu') {
+      if (this.ractorsEnabled) {
+        if (thread.status !== 'cpu') thread.phaseRunWall = null;
+        thread.status = 'cpu';
+        return true;
+      }
       if (proc.gvlHolder === null || proc.gvlHolder === thread.id) {
         proc.gvlHolder = thread.id;
         if (thread.status !== 'cpu') thread.phaseRunWall = null;
@@ -11,7 +18,7 @@ export class GVLScheduler {
         return false;
       }
     } else {
-      if (proc.gvlHolder === thread.id) proc.gvlHolder = null;
+      if (!this.ractorsEnabled && proc.gvlHolder === thread.id) proc.gvlHolder = null;
       thread.status = 'io';
       return true;
     }
@@ -27,6 +34,7 @@ export class GVLScheduler {
   }
 
   postStep(processes, threads, now) {
+    if (this.ractorsEnabled) return;
     for (const proc of processes) {
       if (proc.gvlHolder === null) this.grantNext(proc, threads, now);
     }

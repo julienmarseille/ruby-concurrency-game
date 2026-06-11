@@ -75,13 +75,11 @@ export class ProcessGraph extends DualPanelGraph {
     for (const { key, color } of SERIES) {
       const series = data[key] ?? [];
       if (series.length < 2) continue;
+      gfx.moveTo(x0 + LABEL_W, y0 + GRAPH_H - (series[0] / 100) * GRAPH_H + 2);
       for (let i = 1; i < series.length; i++) {
-        const x1 = x0 + LABEL_W + (i - 1) * tickW;
-        const x2 = x0 + LABEL_W + i       * tickW;
-        const y1 = y0 + GRAPH_H - (series[i - 1] / 100) * GRAPH_H + 2;
-        const y2 = y0 + GRAPH_H - (series[i]     / 100) * GRAPH_H + 2;
-        gfx.moveTo(x1, y1).lineTo(x2, y2).stroke({ color, width: 1.5, alpha: 0.85 });
+        gfx.lineTo(x0 + LABEL_W + i * tickW, y0 + GRAPH_H - (series[i] / 100) * GRAPH_H + 2);
       }
+      gfx.stroke({ color, width: 1.5, alpha: 0.85 });
     }
 
     const nowX = x0 + LABEL_W + (data.cpu?.length ?? 0) * tickW;

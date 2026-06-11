@@ -1,4 +1,4 @@
-import { TICK_MS, MEM_BASE, MEM_NANO, THREAD_MEM, PROCESS_MEM, THREAD_COST, PROCESS_COST, BASE_SPAWN_RATE, FIBER_MEM, EVENTS, OOM_RESTART_TICKS } from '../config.js';
+import { TICK_MS, MEM_BASE, MEM_NANO, THREAD_MEM, PROCESS_MEM, threadCostFor, processCostFor, BASE_SPAWN_RATE, FIBER_MEM, EVENTS, OOM_RESTART_TICKS } from '../config.js';
 import { UPGRADES } from '../UpgradeConfig.js';
 
 const VPS_TIERS = ['large_vps', 'medium_vps', 'small_vps', 'nano_vps'];
@@ -13,7 +13,10 @@ export class GameState {
   _nextThreadId   = 0;
   _nextFiberId    = 1000;
   _fibersEnabled  = false;
+  _ractorsEnabled = false;
   _restartTicks   = 0;
+  _maxThreadsEver  = 0;
+  _spawnFracAccum  = 0;
 
   constructor(events) {
     this._events          = events;
@@ -23,7 +26,7 @@ export class GameState {
     this._metrics         = new MetricsComputer();
     this._processMetrics  = new ProcessMetricsComputer();
 
-    this.money      = 5000;
+    this.money      = 20000;
     this.completed  = 0;
     this.tick       = 0;
     this.threads    = [];
@@ -46,6 +49,7 @@ export class GameState {
     if (id === 'mixed_requests')   this._injectRequests('MIXED',  30);
     if (id === 'report_requests')  this._injectRequests('REPORT', 30);
     if (id === 'fiber_scheduler')  this._enableFibers();
+    if (id === 'ractors')          this._enableRactors();
     return true;
   }
 
@@ -67,20 +71,26 @@ export class GameState {
   addProcess() {
     if (this.processes.length >= 4) return false;
     if (this.processes.length >= this.coreCount) return false;
-    if (this.money < PROCESS_COST) return false;
+    const procCost = processCostFor(this.processes.length + 1);
+    if (this.money < procCost) return false;
     if (this.memUsed + PROCESS_MEM > this.memMax) return false;
-    this.money -= PROCESS_COST;
+    this.money -= procCost;
     const proc = { id: ++this._nextProcessId, gvlHolder: null };
     this.processes.push(proc);
     this._redistributeThreads();
     this._events.emit(EVENTS.PROCESS_ADDED, proc);
+    // In fiber mode, each process gets 1 thread — restore for free if already paid for
+    if (this._fibersEnabled && this.threads.length < this._maxThreadsEver) {
+      this.addThread(true, proc.id);
+    }
     return true;
   }
 
   addThread(free = false, processId = null) {
     if (this.memUsed + THREAD_MEM > this.memMax) return false;
-    if (!free && this.money < THREAD_COST) return false;
-    if (!free) this.money -= THREAD_COST;
+    const cost = threadCostFor(this.threads.length + 1);
+    if (!free && this.money < cost) return false;
+    if (!free) this.money -= cost;
 
     const pid    = processId ?? this._leastLoadedProcessId();
 
@@ -99,8 +109,10 @@ export class GameState {
       extraFibers:  [],
       cpuFiberId:   null,
       fiberHost:    this._fibersEnabled,
+      ractorHost:   this._ractorsEnabled,
     };
     this.threads.push(thread);
+    if (!free) this._maxThreadsEver = Math.max(this._maxThreadsEver, this.threads.length);
     this._events.emit(EVENTS.THREAD_ADDED, thread);
     return true;
   }
@@ -115,7 +127,9 @@ export class GameState {
   }
 
   autoSpawnRequests() {
-    const n = this.spawnRate;
+    this._spawnFracAccum += this.spawnRate;
+    const n = Math.floor(this._spawnFracAccum);
+    this._spawnFracAccum -= n;
     for (let i = 0; i < n; i++) this.spawnRequest();
   }
 
@@ -149,7 +163,8 @@ export class GameState {
   get overviewWindow()    { return this._metrics.overviewWindow; }
   get gvlWaitPct()       { return this._metrics.gvlWaitPct; }
   get totalActiveTicks() { return this._metrics.hasData; }
-  get threadCost()       { return this.threads.length === 0 ? 0 : THREAD_COST; }
+  get threadCost()       { return this.threads.length === 0 ? 0 : threadCostFor(this.threads.length + 1); }
+  get nextProcessCost()  { return processCostFor(this.processes.length + 1); }
   get threadName()       { return this.threads.length === 0 ? '🚀 Start your server' : '➕ Add Thread'; }
   // All fibers with their stack allocated (created but not yet started or actively running).
   get activeFiberCount()  { return this.threads.reduce((sum, t) => sum + t.extraFibers.length, 0); }
@@ -265,10 +280,11 @@ export class GameState {
   }
 
   _advanceFibersOnThread(t, proc, now) {
-    // Pass 1: determine which fiber holds the cooperative CPU slot for this thread
+    // Fibers within a Ractor still share its GVL — cooperative CPU scheduling applies
+    // regardless of Ractor mode. True parallelism comes from multiple threads (Ractors)
+    // running simultaneously, not from fibers within a single Ractor.
     this._updateFiberCpuHolder(t);
 
-    // Pass 2: advance all fibers based on the pre-determined holder
     let waiting = 0, active = 0;
     const toComplete = [];
 
@@ -387,7 +403,8 @@ export class GameState {
     return true;
   }
 
-  get fibersEnabled() { return this._fibersEnabled; }
+  get fibersEnabled()  { return this._fibersEnabled; }
+  get ractorsEnabled() { return this._ractorsEnabled; }
 
   get memBreakdown() {
     const allFibers     = this._fibersEnabled ? this.activeFiberCount : 0;
@@ -440,22 +457,54 @@ export class GameState {
     if (next) t.cpuFiberId = next.id;
   }
 
+  _enableRactors() {
+    this._ractorsEnabled = true;
+    this._gvl.ractorsEnabled = true;
+
+    // Ractors replace multi-process CPU parallelism — collapse to 1 process
+    const toRemove = this.processes.slice(1);
+    this.processes = this.processes.slice(0, 1);
+    if (toRemove.length > 0) this._redistributeThreads();
+
+    for (const proc of this.processes) proc.gvlHolder = null;
+    for (const t of this.threads) {
+      t.cpuFiberId = null;
+      t.ractorHost = true;
+    }
+
+    for (const proc of toRemove) {
+      this._events.emit(EVENTS.PROCESS_REMOVED, proc);
+    }
+
+    // If fibers already enabled, Falcon had collapsed threads. Restore up to max ever bought.
+    if (this._fibersEnabled && this._maxThreadsEver > 0) {
+      while (this.threads.length < this._maxThreadsEver && this.memUsed + THREAD_MEM <= this.memMax) {
+        this.addThread(true);
+      }
+    }
+  }
+
   _enableFibers() {
     this._fibersEnabled = true;
-    // Falcon model: keep only 1 thread per process, remove the rest
+    // In Ractor mode each thread is its own GVL domain — keep all of them,
+    // each gets its own fiber scheduler. Without Ractors, Falcon model applies:
+    // keep only 1 thread per process.
     const toRemove = [];
-    const seenProcesses = new Set();
-    for (const t of this.threads) {
-      if (seenProcesses.has(t.processId)) {
-        toRemove.push(t);
-      } else {
-        seenProcesses.add(t.processId);
+    if (!this._ractorsEnabled) {
+      const seenProcesses = new Set();
+      for (const t of this.threads) {
+        if (seenProcesses.has(t.processId)) {
+          toRemove.push(t);
+        } else {
+          seenProcesses.add(t.processId);
+        }
       }
     }
     for (const t of this.threads) {
       t.request    = null;
       t.status     = 'idle';
       t.fiberHost  = true;
+      if (this._ractorsEnabled) t.cpuFiberId = null;
     }
     for (const t of toRemove) {
       this.threads = this.threads.filter(th => th.id !== t.id);
