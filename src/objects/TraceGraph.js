@@ -151,7 +151,7 @@ export class TraceGraph {
     this._titleText.x = PAD;
     this._titleText.y = headerY;
 
-    let lx = 220;
+    let lx = 290;
     for (let i = 0; i < this._legendDots.length; i++) {
       this._legendDots[i].x  = lx;      this._legendDots[i].y  = headerY;
       this._legendTexts[i].x = lx + 13; this._legendTexts[i].y = headerY;
