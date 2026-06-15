@@ -26,7 +26,7 @@ export class GameState {
     this._metrics         = new MetricsComputer();
     this._processMetrics  = new ProcessMetricsComputer();
 
-    this.money      = 20000;
+    this.money      = 100;
     this.completed  = 0;
     this.tick       = 0;
     this.threads    = [];
